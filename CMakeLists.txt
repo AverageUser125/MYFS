@@ -27,9 +27,9 @@ else()
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)	
 endif()
 
-# memory saftey
-add_link_options(-fsanitize=address)
-add_compile_options(-fsanitize=address)
+# address sanitizer, incompatible with gdb
+# add_link_options(-fsanitize=address)
+# add_compile_options(-fsanitize=address)
 
 if(MSVC)
     # Set MSVC runtime library
