@@ -29,7 +29,15 @@ jobs:
           TAG=$(date +'%Y%m%d')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "TAG=$TAG" >> $GITHUB_ENV
-
+      - name: Verify Files
+        run: |
+          # List files in the root directory
+          ls -la
+          # List files in the build directory if you decide to change the output directory
+          if [ -d "build" ]; then
+            echo "Listing files in the build directory:"
+            ls -la build
+          fi
       - name: Create Release
         uses: marvinpinto/action-automatic-releases@latest
         with:
