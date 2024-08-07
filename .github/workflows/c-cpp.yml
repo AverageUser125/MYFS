@@ -38,4 +38,4 @@ jobs:
           prerelease: true
           title: "Release ${{ env.VERSION }}"
           files: |
-            ./myfs  # Replace with the actual paths to the files you want to include in the release
+            myfs  # Replace with the actual paths to the files you want to include in the release
