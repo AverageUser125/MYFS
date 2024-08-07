@@ -1,16 +1,11 @@
-name: C/C++ CI
+name: AutoRelease
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-permissions:
-  contents: read
-  packages: write # Allow this workflow to write to releases & packages
-  
+    branches: [main] # Adjust this to the branch you use for releases
+
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,21 +17,12 @@ jobs:
     - name: Run build script
       run: ./build.sh
 
-    - name: Set Version to Todays Date
-      id: extract_version
-      run: |
-        VERSION=$(date +'%Y.%m.%d')
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-    - name: Create and Upload Release
-      id: create_release
-      uses: softprops/action-gh-release@v2
+    - name: Auto Release
+      uses: CupOfTea696/gh-action-auto-release@v1.0.2
       with:
-        tag_name: ${{ env.VERSION }}
-        name: Release ${{ env.VERSION }}
-        body: "Release of version ${{ env.VERSION }}"
-        files: ./myfs
-        prerelease: true
-        generate_release_notes: true
+        title: "Release: $version"
+        tag: "v$semver"
+        draft: false
+        regex: "/^Release: (\\d+\\.\\d+\\.\\d+)$/i" # Adjust this regex to match your commit message format
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
