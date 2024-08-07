@@ -246,14 +246,18 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 }
 
 int main(int argc, char** argv) {
-	if (argc != 2) {
+	std::string bldevfile;
+	if (argc == 1) {
+		bldevfile = "test";
+	} else if (argc == 2) {
+		bldevfile = argv[1];
+	} else {
 		std::cerr << RED "Please provide the file to operate on" RESET << std::endl;
 		return -1;
 	}
 
 	std::string currentDir = "/";
-
-	BlockDeviceSimulator blkdevptr(argv[1]);
+	BlockDeviceSimulator blkdevptr(bldevfile);
 	MyFs myfs(&blkdevptr);
 
 	// Print the welcome message
