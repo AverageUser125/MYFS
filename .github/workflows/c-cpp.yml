@@ -17,11 +17,18 @@ jobs:
     - name: Run build script
       run: ./build.sh
 
+    - name: Set Version
+      id: set_version
+      run: |
+        VERSION=$(date +'%Y.%m.%d')
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "SEMVER=v$VERSION" >> $GITHUB_ENV
+
     - name: Auto Release
       uses: CupOfTea696/gh-action-auto-release@v1.0.2
       with:
-        title: "Release: $version"
-        tag: "v$semver"
+        title: "Release: ${{ env.VERSION }}"
+        tag: ${{ env.SEMVER }}
         draft: false
         regex: "/.*/" # Regex that always matches any commit message
       env:
