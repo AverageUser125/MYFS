@@ -24,7 +24,7 @@ enum class CommandType {
 	UNKNOWN
 };
 
-std::vector<std::string> split_cmd(const std::string& cmd) {
+std::vector<std::string> splitCmd(const std::string& cmd) {
 	std::vector<std::string> ans;
 	std::stringstream ss(cmd);
 	std::string part;
@@ -268,23 +268,21 @@ int main(int argc, char** argv) {
 
 	bool exit = false;
 	while (!exit) {
+		std::cout << BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ";
+		std::string cmdline;
+		std::getline(std::cin, cmdline);
+		if (cmdline.empty()) {
+			continue;
+		}
+
+		std::vector<std::string> cmd = splitCmd(cmdline);
+		std::string command = cmd[0];
+		std::vector<std::string> args(cmd.begin() + 1, cmd.end());
+		for (std::string& arg : args) {
+			arg = addCurrentDirAdvance(arg, currentDir);
+		}
+
 		try {
-			std::cout << BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ";
-			std::string cmdline;
-			std::getline(std::cin, cmdline);
-			if (cmdline.empty()) {
-				continue;
-			}
-
-			std::vector<std::string> cmd = split_cmd(cmdline);
-			std::string command = cmd[0];
-
-			std::vector<std::string> args(cmd.begin() + 1, cmd.end());
-
-			for (std::string& arg : args) {
-				arg = addCurrentDirAdvance(arg, currentDir);
-			}
-
 			exit = handleCommand(command, args, myfs, currentDir);
 		} catch (const std::exception& e) {
 			std::cout << RED << "An error occurred: " << e.what() << RESET << std::endl;
