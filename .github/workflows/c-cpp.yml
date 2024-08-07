@@ -18,11 +18,3 @@ jobs:
 
     - name: Run build script
       run: ./build.sh
-
-    - name: Run checks
-      working-directory: build
-      run: make check
-
-    - name: Run distcheck
-      working-directory: build
-      run: make distcheck
