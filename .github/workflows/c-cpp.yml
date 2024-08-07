@@ -3,7 +3,7 @@ name: AutoRelease
 on:
   push:
     branches:
-      - main  # Adjust this to the branch you use for releases
+      - main  # Adjust to your release branch
 
 jobs:
   pre-release:
@@ -14,18 +14,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build & Test
-        run: |
-          # Replace with your build and test commands
-          echo "done!"
+      - name: Make build.sh executable
+        run: chmod +x build.sh
+
+      - name: Run build script
+        run: ./build.sh
 
       - name: Create Release
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          automatic_release_tag: "latest"
+          automatic_release_tag: "v${{ github.run_number }}" # You can customize this
           prerelease: true
           title: "Development Build"
           files: |
-            LICENSE.txt
-            myfs  # Adjust to the files you want to include in the release
+            ./myfs  # Replace with the actual paths to the files you want to include in the release
