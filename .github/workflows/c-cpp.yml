@@ -29,6 +29,7 @@ jobs:
       with:
         title: "Release: ${{ env.VERSION }}"
         tag: ${{ env.SEMVER }}
+        version: ${{ env.VERSION }}
         draft: false
         regex: "/.*/" # Regex that always matches any commit message
       env:
