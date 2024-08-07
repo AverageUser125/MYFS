@@ -24,6 +24,8 @@ jobs:
 
     - name: Create release
       id: create_release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         RELEASE_NAME="v$(date +'%Y%m%d%H%M%S')"
         gh release create $RELEASE_NAME ./myfs
@@ -35,3 +37,5 @@ jobs:
         asset_path: ./myfs
         asset_name: myfs
         asset_content_type: application/octet-stream
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
