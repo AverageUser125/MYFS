@@ -5,7 +5,8 @@
 //const uint8_t MyFs::CURR_VERSION = 0x03;
 
 MyFs::MyFs(BlockDeviceSimulator* blkdevsim_)
-	: blkdevsim(blkdevsim_), allocator(FAT_SIZE, blkdevsim->DEVICE_SIZE), totalFatSize(FAT_SIZE), BLOCK_SIZE(DEFAULT_BLOCK_SIZE) {
+	: blkdevsim(blkdevsim_), allocator(FAT_SIZE, blkdevsim->DEVICE_SIZE), totalFatSize(FAT_SIZE),
+	  BLOCK_SIZE(DEFAULT_BLOCK_SIZE) {
 	try {
 		load();
 		allocator.initialize(entries, BLOCK_SIZE);

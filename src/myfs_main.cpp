@@ -1,6 +1,6 @@
 #include "blkdev.h"
 #include "goodkilo.h"
-// #include "myfs.h"
+#include "myfs.h"
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -24,12 +24,32 @@ enum class CommandType {
 };
 
 std::vector<std::string> split_cmd(const std::string& cmd) {
+	std::vector<std::string> ans;
 	std::stringstream ss(cmd);
 	std::string part;
-	std::vector<std::string> ans;
+	bool inQuotes = false;
+	std::string current;
 
 	while (std::getline(ss, part, ' ')) {
-		ans.push_back(part);
+		if (!inQuotes && part.front() == '"' && part.back() == '"') {
+			// Handle strings fully enclosed in quotes
+			ans.push_back(part.substr(1, part.size() - 2));
+		} else if (!inQuotes && part.front() == '"') {
+			// Start of a quoted string
+			inQuotes = true;
+			current = part.substr(1) + " ";
+		} else if (inQuotes && part.back() == '"') {
+			// End of a quoted string
+			current += part.substr(0, part.size() - 1);
+			ans.push_back(current);
+			inQuotes = false;
+		} else if (inQuotes) {
+			// Middle of a quoted string
+			current += part + " ";
+		} else {
+			// Regular word
+			ans.push_back(part);
+		}
 	}
 
 	return ans;
