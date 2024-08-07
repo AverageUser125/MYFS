@@ -150,8 +150,6 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 
 		break;
 	}
-	case CommandType::EXIT:
-		return true;
 	case CommandType::HELP:
 		printHelpMessage();
 		break;
@@ -234,6 +232,8 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 		myfs.copy(args[0], args[1]);
 		break;
 	}
+	case CommandType::EXIT:
+		return true;
 	case CommandType::UNKNOWN:
 	default:
 		std::cout << RED "Unknown command: " << command << RESET << std::endl;
