@@ -23,6 +23,6 @@ jobs:
         title: "Release: $version"
         tag: "v$semver"
         draft: false
-        regex: "/^Release: (\\d+\\.\\d+\\.\\d+)$/i" # Adjust this regex to match your commit message format
+        regex: "/.*/" # Regex that always matches any commit message
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
