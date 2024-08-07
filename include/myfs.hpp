@@ -2,10 +2,10 @@
 #ifndef MYFS_H
 #define MYFS_H
 
-#include "blkdev.h"
-#include "EntryInfo.h"
-#include "Helper.h"
-#include "allocator.h"
+#include "blkdev.hpp"
+#include "EntryInfo.hpp"
+#include "Helper.hpp"
+#include "allocator.hpp"
 
 class MyFs {
   public:

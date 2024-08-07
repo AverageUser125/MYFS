@@ -8,8 +8,8 @@
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
-#include "myfs.h"
-#include "Helper.h"
+#include "myfs.hpp"
+#include "Helper.hpp"
 
 /* Syntax highlight types */
 enum syntaxHighlight {

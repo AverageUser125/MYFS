@@ -1,5 +1,5 @@
-#include "myfs.h"
-#include "Helper.h"
+#include "myfs.hpp"
+#include "Helper.hpp"
 
 // const std::string MyFs::MYFS_MAGIC = "MYFS";
 //const uint8_t MyFs::CURR_VERSION = 0x03;

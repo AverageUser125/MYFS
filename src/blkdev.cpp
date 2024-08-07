@@ -1,4 +1,4 @@
-#include "blkdev.h"
+#include "blkdev.hpp"
 #include <sys/mman.h>
 
 BlockDeviceSimulator::BlockDeviceSimulator(std::string fname) {

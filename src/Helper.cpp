@@ -1,4 +1,4 @@
-#include "Helper.h"
+#include "Helper.hpp"
 
 // clang-format off
 void printHelpMessage() {
@@ -67,9 +67,6 @@ std::string addCurrentDirAdvance(const std::string& path, const std::string& cur
 		currentPath = "/";
 	}
 	std::istringstream stream(path);
-
-	// get each path token between '/'
-
 
 	// account for start with ./ means current directory
 	if (path.substr(0, 2) == "./") {

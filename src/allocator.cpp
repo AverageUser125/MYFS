@@ -1,5 +1,5 @@
-#include "allocator.h"
-#include "Helper.h"
+#include "allocator.hpp"
+#include "Helper.hpp"
 
 AddressAllocator::AddressAllocator(size_t firstAddress_, size_t lastAddress_)
 	: firstAddress(firstAddress_), lastAddress(lastAddress_), BLOCK_SIZE(DEFAULT_BLOCK_SIZE) {

@@ -1,4 +1,4 @@
-#include "goodkilo.h"
+#include "goodkilo.hpp"
 #include <stdexcept>
 /* C / C++ */
 
@@ -598,7 +598,7 @@ void abAppend(struct abuf* ab, const char* s, int len) {
 	ab->len += len;
 }
 
-void abFree(struct abuf* ab) {
+inline void abFree(struct abuf* ab) {
 	free(ab->b);
 }
 

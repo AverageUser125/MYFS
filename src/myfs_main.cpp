@@ -1,6 +1,6 @@
-#include "blkdev.h"
-#include "goodkilo.h"
-#include "myfs.h"
+#include "blkdev.hpp"
+#include "goodkilo.hpp"
+#include "myfs.hpp"
 #include <iostream>
 #include <sstream>
 #include <string>

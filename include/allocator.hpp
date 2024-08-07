@@ -1,8 +1,8 @@
 #pragma once
 
-#include "EntryInfo.h"
-#include "blkdev.h"
-#include "Helper.h"
+#include "EntryInfo.hpp"
+#include "blkdev.hpp"
+#include "Helper.hpp"
 
 class AddressAllocator {
   public:
