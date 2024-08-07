@@ -2,36 +2,30 @@ name: AutoRelease
 
 on:
   push:
-    branches: [main] # Adjust this to the branch you use for releases
+    branches:
+      - main  # Adjust this to the branch you use for releases
 
 jobs:
-  release:
+  pre-release:
+    name: Pre Release
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Make build.sh executable
-      run: chmod +x build.sh
+      - name: Build & Test
+        run: |
+          # Replace with your build and test commands
+          echo "done!"
 
-    - name: Run build script
-      run: ./build.sh
-
-    - name: Set Version Information
-      id: set_version
-      run: |
-        VERSION=$(date +'%Y.%m.%d')
-        echo "version=v$VERSION" >> $GITHUB_ENV
-        echo "semver=$VERSION" >> $GITHUB_ENV
-
-    - name: Auto Release
-      uses: CupOfTea696/gh-action-auto-release@v1.0.2
-      with:
-        title: "Release: ${{ env.version }}"   # Using the full version string
-        tag: "${{ env.semver }}"                # Using the version string without prefix
-        draft: false
-        regex: "/.*/"                          # Regex that always matches any commit message
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        version: ${{ env.version }}            # Ensure the version environment variable is available
-        semver: ${{ env.semver }}              # Ensure the semver environment variable is available
+      - name: Create Release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: "latest"
+          prerelease: true
+          title: "Development Build"
+          files: |
+            LICENSE.txt
+            myfs  # Adjust to the files you want to include in the release
