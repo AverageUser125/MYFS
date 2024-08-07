@@ -23,9 +23,12 @@ jobs:
       - name: Set Version Date
         id: set_version
         run: |
+          # Create the version string in hour:minute day/month/year format
           VERSION=$(date +'%H:%M %d/%m/%Y')
+          # Create a tag in YYYYMMDD format
+          TAG=$(date +'%Y%m%d')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "TAG=v$VERSION" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> $GITHUB_ENV
 
       - name: Create Release
         uses: marvinpinto/action-automatic-releases@latest
