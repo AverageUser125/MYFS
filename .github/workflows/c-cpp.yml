@@ -20,12 +20,19 @@ jobs:
       - name: Run build script
         run: ./build.sh
 
+      - name: Set Version Date
+        id: set_version
+        run: |
+          VERSION=$(date +'%Y%m%d%H%M%S')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG=v$VERSION" >> $GITHUB_ENV
+
       - name: Create Release
         uses: marvinpinto/action-automatic-releases@latest
         with:
-          repo_token: ${{ secrets.PAT_TOKEN }}  # Use PAT instead of default GITHUB_TOKEN
-          automatic_release_tag: "v${{ github.run_number }}" # You can customize this
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: ${{ env.TAG }}
           prerelease: true
-          title: "Development Build"
+          title: "Release ${{ env.VERSION }}"
           files: |
             ./myfs  # Replace with the actual paths to the files you want to include in the release
