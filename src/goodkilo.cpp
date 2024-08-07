@@ -30,7 +30,7 @@ void editorAtExit() {
 	free(E.row);
 	write(STDOUT_FILENO, "\x1b[H", 3);	// move cursor to the top left
 	write(STDOUT_FILENO, "\x1b[2J", 4); // Clear screen
-	signal(SIGWINCH, (__sighandler_t)nullptr);
+	signal(SIGWINCH, (__sighandler_t) nullptr);
 	disableRawMode();
 }
 
@@ -552,9 +552,9 @@ int editorSave(MyFs& myfs) {
 		}
 	}
 
-	try{
+	try {
 		myfs.createFile(E.filename);
-	} catch(std::runtime_error& e){
+	} catch (std::runtime_error& e) {
 		// catch error like FILE_EXISTS.
 	}
 
