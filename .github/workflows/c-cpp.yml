@@ -1,41 +1,31 @@
-name: C/C++ CI
+name: AutoRelease
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main  # Adjust this to the branch you use for releases
 
 jobs:
-  build:
+  pre-release:
+    name: Pre Release
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Make build.sh executable
-      run: chmod +x build.sh
+      - name: Build & Test
+        run: |
+          # Replace with your build and test commands
+          echo "done!"
 
-    - name: Run build script
-      run: ./build.sh
-
-    - name: Install GitHub CLI
-      run: sudo apt-get install gh
-
-    - name: Create release
-      id: create_release
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        RELEASE_NAME="v$(date +'%Y%m%d%H%M%S')"
-        gh release create $RELEASE_NAME ./myfs
-
-    - name: Upload binary to release
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./myfs
-        asset_name: myfs
-        asset_content_type: application/octet-stream
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: "latest"
+          prerelease: true
+          title: "Development Build"
+          files: |
+            LICENSE.txt
+            myfs  # Adjust to the files you want to include in the release
