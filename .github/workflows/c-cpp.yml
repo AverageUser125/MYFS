@@ -17,20 +17,21 @@ jobs:
     - name: Run build script
       run: ./build.sh
 
-    - name: Set Version
+    - name: Set Version Information
       id: set_version
       run: |
         VERSION=$(date +'%Y.%m.%d')
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "SEMVER=v$VERSION" >> $GITHUB_ENV
+        echo "version=v$VERSION" >> $GITHUB_ENV
+        echo "semver=$VERSION" >> $GITHUB_ENV
 
     - name: Auto Release
       uses: CupOfTea696/gh-action-auto-release@v1.0.2
       with:
-        title: "Release: ${{ env.VERSION }}"
-        tag: ${{ env.SEMVER }}
-        version: ${{ env.VERSION }}
+        title: "Release: ${{ env.version }}"   # Using the full version string
+        tag: "${{ env.semver }}"                # Using the version string without prefix
         draft: false
-        regex: "/.*/" # Regex that always matches any commit message
+        regex: "/.*/"                          # Regex that always matches any commit message
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        version: ${{ env.version }}            # Ensure the version environment variable is available
+        semver: ${{ env.semver }}              # Ensure the semver environment variable is available
