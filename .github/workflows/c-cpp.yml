@@ -18,3 +18,28 @@ jobs:
 
     - name: Run build script
       run: ./build.sh
+
+    - name: Run checks
+      working-directory: build
+      run: make check
+
+    - name: Run distcheck
+      working-directory: build
+      run: make distcheck
+
+    - name: Install GitHub CLI
+      run: sudo apt-get install gh
+
+    - name: Create release
+      id: create_release
+      run: |
+        RELEASE_NAME="v$(date +'%Y%m%d%H%M%S')"
+        gh release create $RELEASE_NAME ./myfs
+
+    - name: Upload binary to release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./myfs
+        asset_name: myfs
+        asset_content_type: application/octet-stream
