@@ -130,7 +130,6 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 			std::cout << RED << TREE_CMD << ": zero arguments requested" RESET << std::endl;
 			return false;
 		}
-
 		printEntries(dlist);
 
 		break;
@@ -169,9 +168,13 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 		}
 		EntryInfo entry = *entryOpt;
 		if (entry.type != FILE_TYPE) {
-			//throw std::runtime_error("Can only edit files");
+			throw std::runtime_error("Can only get content of files");
 		}
-		std::cout << myfs.getContent(entry);
+		std::string content = myfs.getContent(entry);
+		if (!content.empty() && content.back() != '\n') {
+			content += '\n';
+		}
+		std::cout << content;
 		break;
 	}
 	case CommandType::DELETE: {
