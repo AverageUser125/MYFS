@@ -13,9 +13,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: make
+    - name: Build
+      working-directory: build
       run: make
-    - name: make check
+    - name: Check
+      working-directory: build
       run: make check
-    - name: make distcheck
+    - name: Distcheck
+      working-directory: build
       run: make distcheck
