@@ -1,3 +1,4 @@
+#include "Helper.hpp"
 #include "blkdev.hpp"
 #include "goodkilo.hpp"
 #include "myfs.hpp"
@@ -115,9 +116,6 @@ void printEntries(const std::vector<EntryInfo>& entries) {
 }
 
 bool handleCommand(const std::string& command, std::vector<std::string>& args, MyFs& myfs, std::string& currentDir) {
-	if (command.empty()) {
-		return false;
-	}
 
 	CommandType commandType = getCommandType(command);
 
@@ -248,7 +246,7 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 int main(int argc, char** argv) {
 	std::string bldevfile;
 	if (argc == 1) {
-		std::cout << "Please enter the file name: ";
+		std::cout << CYAN "Please enter the file name: " RESET;
 		std::cin >> bldevfile;
 		// Flush stdin to clear any leftover input
 		std::cin.clear();
@@ -259,6 +257,7 @@ int main(int argc, char** argv) {
 		std::cerr << "Too many arguments" << std::endl;
 		return -1;
 	}
+
 	std::string currentDir = "/";
 	BlockDeviceSimulator blkdevptr(bldevfile);
 	MyFs myfs(&blkdevptr);
