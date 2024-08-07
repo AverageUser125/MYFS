@@ -23,7 +23,7 @@ jobs:
       - name: Set Version Date
         id: set_version
         run: |
-          VERSION=$(date +'%Y%m%d%H%M%S')
+          VERSION=$(date +'%H:%M %d/%m/%Y')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "TAG=v$VERSION" >> $GITHUB_ENV
 
