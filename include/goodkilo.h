@@ -50,7 +50,7 @@ struct editorConfig {
 	erow* row;		/* Rows */
 	bool dirty;		/* File modified but not saved. */
 	char* filename; /* Currently open filename */
-	char statusmsg[80];
+	std::array<char, 80> statusmsg;
 	time_t statusmsg_time;
 	struct editorSyntax* syntax; /* Current syntax highlight, or NULL. */
 };

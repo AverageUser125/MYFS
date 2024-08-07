@@ -687,9 +687,9 @@ void editorRefreshScreen() {
 
 	/* Second row depends on E.statusmsg and the status message update time. */
 	abAppend(&ab, "\x1b[0K", 4);
-	int msglen = strlen(E.statusmsg);
+	int msglen = E.statusmsg.size();
 	if ((msglen != 0) && time(nullptr) - E.statusmsg_time < 5)
-		abAppend(&ab, E.statusmsg, msglen <= E.screencols ? msglen : E.screencols);
+		abAppend(&ab, E.statusmsg.data(), msglen <= E.screencols ? msglen : E.screencols);
 
 	/* Put cursor at its current position. Note that the horizontal position
      * at which the cursor is displayed may be different compared to 'E.cx'
@@ -717,7 +717,7 @@ void editorRefreshScreen() {
 void editorSetStatusMessage(const char* fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
-	vsnprintf(E.statusmsg, sizeof(E.statusmsg), fmt, ap);
+	vsnprintf(E.statusmsg.data(), sizeof(E.statusmsg), fmt, ap);
 	va_end(ap);
 	E.statusmsg_time = time(nullptr);
 }
