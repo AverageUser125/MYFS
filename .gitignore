@@ -1,0 +1,25 @@
+### VisualStudio ###
+.vscode/
+.cache/
+.history/
+*.vsix
+src/*.h
+
+ms-vscode-remote.*
+.history
+.ionide
+Generated\ Files/
+.vs/
+
+# Build results
+build/
+compile_commands.json
+
+# Own files
+test
+test.bak
+test2
+test2.bak
+myfs
+old/
+old/*
