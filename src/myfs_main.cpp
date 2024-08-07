@@ -263,16 +263,11 @@ int main(int argc, char** argv) {
 			std::cout << BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ";
 			std::string cmdline;
 			std::getline(std::cin, cmdline);
-
 			if (cmdline.empty()) {
 				continue;
 			}
 
 			std::vector<std::string> cmd = split_cmd(cmdline);
-			if (cmd.empty()) {
-				continue;
-			}
-
 			std::string command = cmd[0];
 
 			std::vector<std::string> args(cmd.begin() + 1, cmd.end());

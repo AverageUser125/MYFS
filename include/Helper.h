@@ -34,11 +34,10 @@
 #include <unistd.h>
 
 #define FS_NAME "myfs"
+
 #define MYFS_MAGIC "MYFS"
 #define CURR_VERSION 0x03
-
 #define MAX_DIRECTORY_SIZE 6
-
 #define FAT_SIZE 4096
 #define MAX_PATH_LENGTH 256
 #define HEADER_SIZE (sizeof(uint8_t) + sizeof(size_t))

@@ -35,12 +35,6 @@ void AddressAllocator::initialize(const std::set<EntryInfo>& entries, const uint
 	}
 }
 
-// TODO: fix bug where
-// path: / , size: 0, address: 1024
-// addTableEntry(path="/1")
-// path: / , size: 0, address: 1024
-// path: /1 , size: 0, address: 1024
-// And there is collision between addresses
 size_t AddressAllocator::allocate(size_t requestedSize) {
 	requestedSize = alignToBlockSize(requestedSize);
 
