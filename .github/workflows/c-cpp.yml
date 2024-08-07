@@ -25,10 +25,8 @@ jobs:
         run: |
           # Create the version string in hour:minute day/month/year format
           VERSION=$(date +'%H:%M %d/%m/%Y')
-          # Create a tag in YYYYMMDD format
-          TAG=$(date +'%Y%m%d')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "TAG=Dev" >> $GITHUB_ENV
       - name: Verify Files
         run: |
           # List files in the root directory
@@ -46,4 +44,4 @@ jobs:
           prerelease: true
           title: "Release ${{ env.VERSION }}"
           files: |
-            myfs  # Replace with the actual paths to the files you want to include in the release
+            ./build/myfs  # Replace with the actual paths to the files you want to include in the release
