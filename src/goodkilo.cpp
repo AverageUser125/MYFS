@@ -687,7 +687,7 @@ void editorRefreshScreen() {
 
 	/* Second row depends on E.statusmsg and the status message update time. */
 	abAppend(&ab, "\x1b[0K", 4);
-	int msglen = E.statusmsg.size();
+	int msglen = strlen(E.statusmsg.data());
 	if ((msglen != 0) && time(nullptr) - E.statusmsg_time < 5)
 		abAppend(&ab, E.statusmsg.data(), msglen <= E.screencols ? msglen : E.screencols);
 
@@ -717,7 +717,8 @@ void editorRefreshScreen() {
 void editorSetStatusMessage(const char* fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
-	vsnprintf(E.statusmsg.data(), sizeof(E.statusmsg), fmt, ap);
+	int len = vsnprintf(E.statusmsg.data(), sizeof(E.statusmsg), fmt, ap);
+	E.statusmsg[len] = 0;
 	va_end(ap);
 	E.statusmsg_time = time(nullptr);
 }
@@ -750,7 +751,7 @@ void editorFind() {
 	int saved_rowoff = E.rowoff;
 
 	while (true) {
-		editorSetStatusMessage("Search: %s (Use ESC/Arrows/Enter)", query);
+		editorSetStatusMessage("Search: %s (Use ESC/Arrows/Enter)", query.data());
 		editorRefreshScreen();
 
 		int c = readKey();
