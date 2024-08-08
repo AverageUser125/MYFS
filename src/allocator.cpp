@@ -2,41 +2,49 @@
 #include "EntryInfo.hpp"
 #include "config.hpp"
 
-AddressAllocator::AddressAllocator(size_t firstAddress_, size_t lastAddress_)
-	: firstAddress(firstAddress_), lastAddress(lastAddress_), BLOCK_SIZE(DEFAULT_BLOCK_SIZE) {
-	assert(lastAddress > firstAddress + BLOCK_SIZE);
+AddressAllocatorBase::AddressAllocatorBase(size_t firstAddress_, size_t lastAddress_)
+    : firstAddress(firstAddress_), lastAddress(lastAddress_) {}
+
+AddressAllocator<UnInitialized>::AddressAllocator(size_t firstAddress_, size_t lastAddress_)
+    : AddressAllocatorBase(firstAddress_, lastAddress_) {}
+
+AddressAllocator<Initialized> AddressAllocator<UnInitialized>::initialize(const std::set<EntryInfo>& entries, uint16_t blockSize) const {
+    AddressAllocator<Initialized> initializedAllocator(firstAddress, lastAddress, blockSize);
+    initializeImpl(initializedAllocator, entries, blockSize);
+    return initializedAllocator;
 }
 
-void AddressAllocator::initialize(const std::set<EntryInfo>& entries, const uint16_t BLOCK_SIZE_) {
-	BLOCK_SIZE = BLOCK_SIZE_;
-	freeSpaces.clear();
-
-	if (entries.empty()) {
-		// If entries are empty, all space is free
-		freeSpaces.emplace(firstAddress, lastAddress - firstAddress);
-		return;
-	}
-	// Find free spaces between existing entries
-	size_t currentAddress = firstAddress;
-
-	for (const EntryInfo& entry : entries) {
-		if (entry.address > currentAddress) {
-			// There is a gap between the current address and the start of this entry
-			freeSpaces.emplace(currentAddress, entry.address - currentAddress);
-		}
-		// Move current address to the end of this entry
-		currentAddress = entry.address + alignToBlockSize(entry.size);
-	}
-
-	// Check for free space after the last entry
-	if (currentAddress < lastAddress) {
-		// emplace is just insert, but it constructs a key-value pair automatically
-		// so I don't have to write std::pair every time
-		freeSpaces.emplace(currentAddress, lastAddress - currentAddress);
-	}
+ void AddressAllocator<UnInitialized>::initializeImpl(AddressAllocator<Initialized>& allocator, const std::set<EntryInfo>& entries, uint16_t blockSize)  {
+	allocator.BLOCK_SIZE = blockSize;
+    allocator.initializeFreeSpaces(entries);
 }
 
-size_t AddressAllocator::allocate(size_t requestedSize) {
+AddressAllocator<Initialized>::AddressAllocator(size_t firstAddress_, size_t lastAddress_, uint16_t blockSize)
+    : AddressAllocatorBase(firstAddress_, lastAddress_), BLOCK_SIZE(blockSize) {}
+
+void AddressAllocator<Initialized>::initializeFreeSpaces(const std::set<EntryInfo>& entries) {
+    freeSpaces.clear();
+
+    if (entries.empty()) {
+        freeSpaces.emplace(firstAddress, lastAddress - firstAddress);
+        return;
+    }
+
+    size_t currentAddress = firstAddress;
+
+    for (const EntryInfo& entry : entries) {
+        if (entry.address > currentAddress) {
+            freeSpaces.emplace(currentAddress, entry.address - currentAddress);
+        }
+        currentAddress = entry.address + alignToBlockSize(entry.size);
+    }
+
+    if (currentAddress < lastAddress) {
+        freeSpaces.emplace(currentAddress, lastAddress - currentAddress);
+    }
+}
+
+size_t AddressAllocator<Initialized>::allocate(size_t requestedSize) {
 	requestedSize = alignToBlockSize(requestedSize);
 
 	// Find a suitable free space block
@@ -58,7 +66,7 @@ size_t AddressAllocator::allocate(size_t requestedSize) {
 	throw std::overflow_error("Insufficient space to allocate");
 }
 
-void AddressAllocator::deallocate(const EntryInfo& entry) {
+void AddressAllocator<Initialized>::deallocate(const EntryInfo& entry) {
 	//if (entry.size == 0)
 	//	return; // No need to deallocate zero-sized entries
 
@@ -71,7 +79,7 @@ void AddressAllocator::deallocate(const EntryInfo& entry) {
 	mergeFreeSpaces(startAddress, size);
 }
 
-void AddressAllocator::reallocate(EntryInfo& entry, size_t newSize) {
+void AddressAllocator<Initialized>::reallocate(EntryInfo& entry, size_t newSize) {
 	size_t oldSize = alignToBlockSize(entry.size);
 	size_t newAlignedSize = alignToBlockSize(newSize);
 	size_t oldBlockCount = (oldSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
@@ -112,14 +120,14 @@ void AddressAllocator::reallocate(EntryInfo& entry, size_t newSize) {
 	entry.size = newSize;
 }
 
-inline size_t AddressAllocator::alignToBlockSize(const size_t size) const {
+inline size_t AddressAllocator<Initialized>::alignToBlockSize(const size_t size) const {
 	if (size == 0) {
 		return BLOCK_SIZE;
 	}
 	return ((size + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
 }
 
-void AddressAllocator::mergeFreeSpaces(size_t startAddress, size_t size) {
+void AddressAllocator<Initialized>::mergeFreeSpaces(size_t startAddress, size_t size) {
 	// merges ONLY adjacent free spaces
 	// can be remove and it will work, just be less memory efficient
 	auto it = freeSpaces.find(startAddress);
@@ -140,7 +148,7 @@ void AddressAllocator::mergeFreeSpaces(size_t startAddress, size_t size) {
 	freeSpaces[startAddress] = size;
 }
 
-void AddressAllocator::defrag(std::set<EntryInfo>& entries, BlockDeviceSimulator* blkdevsim) {
+void AddressAllocator<Initialized>::defrag(std::set<EntryInfo>& entries, BlockDeviceSimulator* blkdevsim) {
 	// assert(nullptr == "defrag not working and corrupting data");
 	if (entries.empty()) {
 		return; // Nothing to defrag

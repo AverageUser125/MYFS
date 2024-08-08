@@ -1,5 +1,7 @@
 
 #include "myfs_main.hpp"
+#include "allocator.hpp"
+#include "config.hpp"
 
 std::string addCurrentDirAdvance(const std::string& path, const std::string& currentDir) {
 	const std::vector<std::string> specialDirectory = {"..", "."};
@@ -321,7 +323,8 @@ int main(int argc, char** argv) {
 	std::string currentDir = "/";
 	// may fail, if can't create file, or file is read-only
 	BlockDeviceSimulator blkdevptr(bldevfile);
-	MyFs myfs(&blkdevptr);
+	AddressAllocator<UnInitialized> uninitializedAllocator(FAT_SIZE, blkdevptr.DEVICE_SIZE);
+	MyFs myfs(&blkdevptr, &uninitializedAllocator);
 
 	// Print the welcome message
 	std::cout << GREEN << MENU_ASCII_ART << RESET << std::endl;

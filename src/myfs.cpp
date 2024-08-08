@@ -1,23 +1,25 @@
 #include "myfs.hpp"
 #include "config.hpp"
+#include <memory>
 
 // const std::string MyFs::MYFS_MAGIC = "MYFS";
 //const uint8_t MyFs::CURR_VERSION = 0x03;
 
-MyFs::MyFs(BlockDeviceSimulator* blkdevsim_)
-	: blkdevsim(blkdevsim_), allocator(FAT_SIZE, blkdevsim->DEVICE_SIZE), totalFatSize(FAT_SIZE),
-	  BLOCK_SIZE(DEFAULT_BLOCK_SIZE) {
-	try {
-		load();
-		allocator.initialize(entries, BLOCK_SIZE);
-		allocator.defrag(entries, blkdevsim);
-		// allocator.defrag(entries, blkdevsim);
-	} catch (const std::exception& e) {
-		allocator.initialize(entries, BLOCK_SIZE);
-		format();
-	}
-}
 
+MyFs::MyFs(BlockDeviceSimulator* blkdevsim_, AddressAllocator<UnInitialized>* uninitializedAllocator)
+    : blkdevsim(blkdevsim_),
+      allocator(nullptr),  // Initialize to nullptr
+      totalFatSize(FAT_SIZE),      // Example value; adjust as needed
+      BLOCK_SIZE(DEFAULT_BLOCK_SIZE) {  // Example value; adjust as needed
+    try {
+        load();
+		allocator = std::make_unique<AddressAllocator<Initialized>>(
+				uninitializedAllocator->initialize(entries, DEFAULT_BLOCK_SIZE));  
+		} catch (const std::exception& e) {
+        format();
+        // Handle additional error cases if necessary
+    }
+}
 MyFs::~MyFs() {
 	try {
 		save(); // Ensure all changes are flushed to the block device

@@ -18,7 +18,7 @@
 
 class MyFs {
   public:
-	explicit MyFs(BlockDeviceSimulator* blkdevsim_);
+MyFs(BlockDeviceSimulator* blkdevsim_, AddressAllocator<UnInitialized>* uninitializedAllocator);
 	~MyFs();
 
 	void format();
@@ -64,8 +64,8 @@ class MyFs {
 	};
 
 	std::set<EntryInfo> entries;
-	BlockDeviceSimulator* blkdevsim;
-	AddressAllocator allocator;
+	BlockDeviceSimulator* blkdevsim;    
+    AddressAllocator<Initialized>* allocator;
 	size_t totalFatSize;
 	uint16_t BLOCK_SIZE;
 };
