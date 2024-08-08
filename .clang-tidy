@@ -29,6 +29,7 @@ Checks: "*,
   -readability-braces-around-statements,
   -hicpp-braces-around-statements,
   -readability-function-cognitive-complexity,
+  -hicpp-signed-bitwise,
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''

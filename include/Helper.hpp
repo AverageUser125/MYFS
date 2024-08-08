@@ -97,6 +97,22 @@ std::string addCurrentDirAdvance(const std::string& filepath, const std::string&
 
 std::string addCurrentDir(const std::string& filename, const std::string& currentDir);
 
+enum class CommandType {
+	LIST,
+	EXIT,
+	HELP,
+	CREATE_FILE,
+	CONTENT,
+	DELETE,
+	EDIT,
+	CREATE_DIR,
+	CD,
+	TREE,
+	COPY,
+	MOVE,
+	UNKNOWN
+};
+
 // Set allocator block size depending on if 32 bit or 64 bit, work in linux only
 // why do I do this you may ask? malloc does the same so why not?
 #if __GNUC__

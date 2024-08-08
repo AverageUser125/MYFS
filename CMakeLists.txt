@@ -28,8 +28,8 @@ else()
 endif()
 
 # address sanitizer, incompatible with gdb
-# add_link_options(-fsanitize=address)
-# add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
+add_compile_options(-fsanitize=address)
 
 if(MSVC)
     # Set MSVC runtime library

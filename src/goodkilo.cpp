@@ -73,7 +73,7 @@ int enableRawMode() {
 
 /* Read a key from the terminal put in raw mode, trying to handle
  * escape sequences. */
-int editorReadKey() {
+int readKey() {
 	int nread = 0;
 	char c = 0;
 	std::array<char, 3> seq{};
@@ -501,7 +501,7 @@ char* editorPrompt(const char* prompt) {
 	while (true) {
 		editorSetStatusMessage(prompt, buf);
 		editorRefreshScreen();
-		int c = editorReadKey();
+		int c = readKey();
 		if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
 			if (buflen != 0)
 				buf[--buflen] = '\0';
@@ -753,7 +753,7 @@ void editorFind() {
 		editorSetStatusMessage("Search: %s (Use ESC/Arrows/Enter)", query);
 		editorRefreshScreen();
 
-		int c = editorReadKey();
+		int c = readKey();
 		if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
 			if (qlen != 0)
 				query[--qlen] = '\0';
@@ -942,7 +942,7 @@ void editorProcessKeypress(MyFs& myfs) {
      * before actually quitting. */
 	static int quit_times = KILO_QUIT_TIMES;
 
-	int c = editorReadKey();
+	int c = readKey();
 	switch (c) {
 	case ENTER: /* Enter */
 		editorInsertNewline();

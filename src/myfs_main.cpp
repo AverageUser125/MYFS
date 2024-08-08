@@ -2,27 +2,7 @@
 #include "blkdev.hpp"
 #include "goodkilo.hpp"
 #include "myfs.hpp"
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <map>
-
-enum class CommandType {
-	LIST,
-	EXIT,
-	HELP,
-	CREATE_FILE,
-	CONTENT,
-	DELETE,
-	EDIT,
-	CREATE_DIR,
-	CD,
-	TREE,
-	COPY,
-	MOVE,
-	UNKNOWN
-};
+#include "shellPrompt.hpp"
 
 std::vector<std::string> splitCmd(const std::string& cmd) {
 	std::vector<std::string> ans;
@@ -266,11 +246,12 @@ int main(int argc, char** argv) {
 	std::cout << GREEN << MENU_ASCII_ART << RESET << std::endl;
 	std::cout << "To get help, please type 'help' on the prompt below.\r\n" << std::endl;
 
+	shellPrompt shell;
+	shell.setPrompt(BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ");
+
 	bool exit = false;
 	while (!exit) {
-		std::cout << BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ";
-		std::string cmdline;
-		std::getline(std::cin, cmdline);
+		std::string cmdline = shell.readInput();
 		if (cmdline.empty()) {
 			continue;
 		}

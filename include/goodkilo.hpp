@@ -2,7 +2,7 @@
 #ifndef GOODKILO_H
 #define GOODKILO_H
 
-#define KILO_VERSION "0.0.1"
+#define KILO_VERSION "0.0.2"
 
 #define WELCOME_MESSAGE "Kilo editor -- verison " KILO_VERSION "\x1b[0K\r\n"
 
@@ -108,7 +108,7 @@ void editorFindCallback(char* query, int key);
 void editorFind();
 char* editorPrompt(const char* prompt);
 void editorMoveCursor(int key);
-int editorReadKey();
+int readKey();
 void editorProcessKeypress(MyFs& myfs);
 int interpretExtendedKeys();
 inline void snapCursorToEndOfLine(erow* row);
