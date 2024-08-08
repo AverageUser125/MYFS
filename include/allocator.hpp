@@ -19,7 +19,6 @@ class AddressAllocator {
 	void deallocate(const EntryInfo& entry);
 	void reallocate(EntryInfo& entry, size_t newSize);
 
-
 	void defrag(std::set<EntryInfo>& entries, BlockDeviceSimulator* blkdevsim);
 
   private:

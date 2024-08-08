@@ -127,7 +127,6 @@ void MyFs::format() {
 	newEntry.address = -1;
 	// Add the entry to the file system
 	addTableEntry(newEntry);
-
 }
 
 #pragma endregion

@@ -993,8 +993,7 @@ void editorProcessKeypress(MyFs& myfs) {
 		editorMoveCursor(c);
 		break;
 	case CTRL_KEY('l'): /* ctrl+l, clear screen */
-		/* Just refresht the line as side effect. */
-		break;
+						/* Just refresht the line as side effect. */
 	case ESC:
 		/* Nothing to do for ESC in this mode. */
 		break;
