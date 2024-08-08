@@ -1,4 +1,5 @@
 #include "allocator.hpp"
+#include "EntryInfo.hpp"
 #include "Helper.hpp"
 
 AddressAllocator::AddressAllocator(size_t firstAddress_, size_t lastAddress_)
@@ -123,6 +124,7 @@ inline size_t AddressAllocator::alignToBlockSize(const size_t size) const {
 
 void AddressAllocator::mergeFreeSpaces(size_t startAddress, size_t size) {
 	// merges ONLY adjacent free spaces
+	// can be remove and it will work, just be less memory efficient
 	auto it = freeSpaces.find(startAddress);
 	size_t prevAddress = std::prev(it)->first;
 	size_t nextAddress = std::next(it)->first;
@@ -148,16 +150,27 @@ void AddressAllocator::defrag(std::set<EntryInfo>& entries, BlockDeviceSimulator
 	}
 	// Step 1: Collect all allocated entries
 	std::vector<EntryInfo> allEntries(entries.begin(), entries.end());
+	entries.clear(); // Clear existing entries
 
 	// Step 2: Sort entries by their current address
 	std::sort(allEntries.begin(), allEntries.end(),
 			  [](const EntryInfo& a, const EntryInfo& b) { return a.address < b.address; });
 
+	// Step 3: Make sure root is at the beginning
+	auto it = std::find_if(allEntries.begin(), allEntries.end(), [](const EntryInfo& a) { return a.path == "/"; });
+	assert(it != allEntries.end());
+	EntryInfo rootEntry = *it;  // root obviously must exist
+	allEntries.erase(it);
+	
 	std::vector<char> buffer;
-	// Step 4: Reallocate entries to their new positions
-	entries.clear(); // Clear existing entries
+	buffer.resize(rootEntry.size);
+	blkdevsim->read(rootEntry.address, rootEntry.size, buffer.data());
+	rootEntry.address = firstAddress;
+	blkdevsim->write(rootEntry.address, rootEntry.size, buffer.data());
+	entries.insert(rootEntry);
 
-	size_t nextAvailableAddress = firstAddress;
+	// Step 4: Reallocate entries to their new positions
+	size_t nextAvailableAddress = firstAddress + alignToBlockSize(rootEntry.size);
 	for (EntryInfo& entry : allEntries) {
 		size_t alignedSize = alignToBlockSize(entry.size);
 		buffer.resize(alignedSize);

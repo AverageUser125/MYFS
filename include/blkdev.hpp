@@ -14,7 +14,7 @@
 
 class BlockDeviceSimulator {
   public:
-	explicit BlockDeviceSimulator(std::string fname);
+	explicit BlockDeviceSimulator(std::string& fname);
 	~BlockDeviceSimulator();
 
 	void read(size_t addr, size_t size, char* ans);

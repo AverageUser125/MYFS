@@ -1,7 +1,7 @@
 #include "blkdev.hpp"
 #include <sys/mman.h>
 
-BlockDeviceSimulator::BlockDeviceSimulator(std::string fname) {
+BlockDeviceSimulator::BlockDeviceSimulator(std::string& fname) {
 	// if file doesn't exist, create it
 	if (access(fname.c_str(), F_OK) == -1) {
 		fd = open(fname.c_str(), O_CREAT | O_RDWR | O_EXCL, 0664);
@@ -22,7 +22,7 @@ BlockDeviceSimulator::BlockDeviceSimulator(std::string fname) {
 		}
 	}
 
-	filemap = (unsigned char*)mmap(NULL, DEVICE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	filemap = (unsigned char*)mmap(nullptr, DEVICE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (filemap == (unsigned char*)-1) {
 		throw std::runtime_error(strerror(errno));
 	}
