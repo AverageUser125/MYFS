@@ -33,19 +33,10 @@ MyFs::~MyFs() {
 
 void MyFs::save() {
 	// Make sure we have the correct size
-	size_t totalSize = 0;
-	for (const EntryInfo& entry : entries) {
-		totalSize += entry.serializedSize();
-	}
-	if (totalFatSize != totalSize) {
-		std::cout << "fat size:" << totalFatSize << " entires size:" << totalSize << std::endl;
-		totalFatSize = totalSize;
-	}
-	//std::accumulate(entries.begin(), entries.end(), static_cast<size_t>(0),
-	//					   [](size_t totalSize, const EntryInfo& entry) {
-	//						   return totalSize + entry.serializedSize();
-	//					   }) == totalFatSize);
-	assert(FAT_SIZE > BLOCK_SIZE);
+	assert(std::accumulate(entries.begin(), entries.end(), static_cast<size_t>(0),
+						   [](size_t totalSize, const EntryInfo& entry) {
+							   return totalSize + entry.serializedSize();
+						   }) == totalFatSize);
 
 	if (totalFatSize > static_cast<size_t>(FAT_SIZE - BLOCK_SIZE)) {
 		throw std::overflow_error("FAT partition full");
@@ -82,7 +73,7 @@ void MyFs::load() {
 	if (header.version != CURR_VERSION) {
 		throw std::runtime_error("Unsupported file system version.");
 	}
-	if (header.blockSize <= 1) {
+	if (header.blockSize <= 1 && header.blockSize < FAT_SIZE) {
 		throw std::runtime_error("Invalid block size");
 	}
 	BLOCK_SIZE = header.blockSize;
@@ -97,10 +88,7 @@ void MyFs::load() {
 		// Read the type and path length first
 		blkdevsim->read(offset, HEADER_SIZE, buffer.data());
 		// Check if buffer is just zeros
-		if (std::all_of(buffer.begin(), buffer.begin() + HEADER_SIZE, [](char c) { return c == 0; })) {
-			// If the buffer contains only zeros, it is the end of the entries
-			break;
-		}
+		assert(std::all_of(buffer.begin(), buffer.begin() + HEADER_SIZE, [](char c) { return c == 0; }) == false);
 		// Deserialize entry to get the path length
 		EntryInfo entry;
 		entry.deserialize(buffer.data());
