@@ -55,9 +55,6 @@ size_t AddressAllocator::allocate(size_t requestedSize) {
 		}
 	}
 
-	for (const auto& entry : freeSpaces) {
-		std::cout << entry.first << " " << entry.second << std::endl;
-	}
 	throw std::overflow_error("Insufficient space to allocate");
 }
 

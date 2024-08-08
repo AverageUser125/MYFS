@@ -7,7 +7,6 @@
 #include <iostream>
 #include <unistd.h>
 #include <cerrno>
-#include <cstring>
 #include <cstdlib>
 #include <deque>
 #include <regex>

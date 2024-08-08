@@ -3,6 +3,11 @@
 #include "EntryInfo.hpp"
 #include "blkdev.hpp"
 #include "config.hpp"
+#include <set>
+#include <map>
+#include <vector>
+#include <algorithm>
+#include <functional>
 
 class AddressAllocator {
   public:

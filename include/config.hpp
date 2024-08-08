@@ -1,38 +1,6 @@
 #pragma once
 
-#include "EntryInfo.hpp"
-#include <iostream>
-#include <string>
-#include <utility>
-#include <vector>
-#include <sstream>
-#include <iomanip>
 #include <cassert>
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <cstring>
-#include <fstream>
-#include <functional>
-#include <map>
-#include <memory>
-#include <numeric>
-#include <optional>
-#include <set>
-#include <stdexcept>
-#include <cctype>
-#include <cerrno>
-#include <fcntl.h>
-#include <csignal>
-#include <cstdarg>
-#include <cstdio>
-#include <cstdlib>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <termios.h>
-#include <ctime>
-#include <unistd.h>
 
 #pragma region myfsSettings
 #define MYFS_MAGIC "MYFS"
@@ -43,6 +11,7 @@
 #pragma endregion
 
 #pragma region editorSettings
+#define KILO_QUIT_TIMES 3
 #define KILO_VERSION "0.0.2"
 #define WELCOME_MESSAGE "Kilo editor -- verison " KILO_VERSION "\x1b[0K\r\n"
 #define TAB_SIZE 8

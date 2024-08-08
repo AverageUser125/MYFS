@@ -5,6 +5,9 @@
 #include "blkdev.hpp"
 #include "goodkilo.hpp"
 #include "shellPrompt.hpp"
+#include <iomanip>
+
+#include <cmath>
 
 // for the printEntires function
 // makes it look nicer

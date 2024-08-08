@@ -13,7 +13,6 @@ MyFs::MyFs(BlockDeviceSimulator* blkdevsim_)
 		allocator.defrag(entries, blkdevsim);
 		// allocator.defrag(entries, blkdevsim);
 	} catch (const std::exception& e) {
-		std::cerr << "Error loading file system: " << e.what() << std::endl;
 		allocator.initialize(entries, BLOCK_SIZE);
 		format();
 	}
@@ -23,7 +22,7 @@ MyFs::~MyFs() {
 	try {
 		save(); // Ensure all changes are flushed to the block device
 	} catch (std::runtime_error& e) {
-		std::cout << e.what() << std::endl;
+		// std::cout << e.what() << std::endl;
 	}
 }
 
@@ -121,18 +120,14 @@ void MyFs::format() {
 	std::vector<char> clearBuffer(remainingSize, 0); // Create a buffer filled with zeros
 	blkdevsim->write(sizeof(header) + sizeof(totalFatSize), remainingSize, clearBuffer.data());
 
-	try {
-		EntryInfo newEntry;
-		newEntry.path = "/";
-		newEntry.type = DIRECTORY_TYPE;
-		newEntry.size = 0;
-		newEntry.address = -1;
-		// Add the entry to the file system
-		addTableEntry(newEntry);
+	EntryInfo newEntry;
+	newEntry.path = "/";
+	newEntry.type = DIRECTORY_TYPE;
+	newEntry.size = 0;
+	newEntry.address = -1;
+	// Add the entry to the file system
+	addTableEntry(newEntry);
 
-	} catch (const std::runtime_error& e) {
-		std::cerr << "Error creating root directory: " << e.what() << std::endl;
-	}
 }
 
 #pragma endregion
@@ -195,7 +190,6 @@ void MyFs::addTableEntry(EntryInfo& entryToAdd) {
 	// Insert the entry into the set
 	if (totalFatSize >= FAT_SIZE - 1) {
 		entries.erase(entryToAdd);
-		std::cout << totalFatSize << std::endl;
 		throw std::overflow_error("FAT table full");
 	}
 	totalFatSize += entryToAdd.serializedSize();
@@ -354,9 +348,7 @@ void MyFs::addFileToDirectory(const std::string& directoryPath, const std::strin
 void MyFs::removeFileFromDirectory(const std::string& directoryPath, const std::string& filename) {
 	std::optional<EntryInfo> directoryEntryOpt = getEntryInfo(directoryPath);
 	if (!directoryEntryOpt || directoryEntryOpt->type != DIRECTORY_TYPE) {
-		std::cout << "Directory not found: " << directoryPath << std::endl;
-		return;
-		// throw std::runtime_error("Invalid directory2: " + directoryPath);
+		throw std::runtime_error("Directory not found: " + directoryPath);
 	}
 
 	const EntryInfo& directoryEntry = *directoryEntryOpt;
@@ -367,11 +359,7 @@ void MyFs::removeFileFromDirectory(const std::string& directoryPath, const std::
 	// Modify directory entries
 	auto it = std::find(directoryEntries.begin(), directoryEntries.end(), filename);
 	if (it == directoryEntries.end()) {
-		if (!filename.empty()) {
-			std::cout << "File not found in the directory: " << filename << std::endl;
-		}
-		return;
-		//throw std::runtime_error("File not found in the directory: " + filename);
+		throw std::runtime_error("File not found in the directory: " + filename);
 	}
 	directoryEntries.erase(it);
 

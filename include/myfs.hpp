@@ -6,6 +6,12 @@
 #include "EntryInfo.hpp"
 #include "config.hpp"
 #include "allocator.hpp"
+#include <stdexcept>
+#include <set>
+#include <optional>
+#include <numeric>
+#include <functional>
+#include <sstream>
 
 #define HEADER_SIZE (sizeof(uint8_t) + sizeof(size_t))
 #define ENTRY_BUFFER_SIZE (HEADER_SIZE + MAX_PATH_LENGTH + sizeof(size_t) + sizeof(size_t))

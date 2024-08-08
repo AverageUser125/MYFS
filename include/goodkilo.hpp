@@ -10,6 +10,14 @@
 
 #include "myfs.hpp"
 #include "config.hpp"
+#include <csignal>
+#include <cstdio>
+#include <termios.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <cstdlib>
+#include <cstdarg>
+#include <functional>
 
 /* Syntax highlight types */
 enum syntaxHighlight {
