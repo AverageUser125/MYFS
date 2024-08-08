@@ -4,8 +4,11 @@
 
 #include "blkdev.hpp"
 #include "EntryInfo.hpp"
-#include "Helper.hpp"
+#include "config.hpp"
 #include "allocator.hpp"
+
+#define HEADER_SIZE (sizeof(uint8_t) + sizeof(size_t))
+#define ENTRY_BUFFER_SIZE (HEADER_SIZE + MAX_PATH_LENGTH + sizeof(size_t) + sizeof(size_t))
 
 class MyFs {
   public:
@@ -42,6 +45,9 @@ class MyFs {
 
 	std::vector<EntryInfo> listDir(const std::string& currentDir);
 	std::vector<EntryInfo> listTree();
+
+	static std::pair<std::string, std::string> splitPath(const std::string& filepath);
+	static std::string addCurrentDir(const std::string& filename, const std::string& currentDir);
 
   private:
 	struct myfs_header {

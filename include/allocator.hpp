@@ -2,7 +2,7 @@
 
 #include "EntryInfo.hpp"
 #include "blkdev.hpp"
-#include "Helper.hpp"
+#include "config.hpp"
 
 class AddressAllocator {
   public:

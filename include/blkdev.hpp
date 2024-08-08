@@ -11,16 +11,19 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <cstring>
+#include <system_error>
+
+#define NEW_FILE_PERMISSIONS 0644
 
 class BlockDeviceSimulator {
   public:
-	explicit BlockDeviceSimulator(std::string& fname);
+	explicit BlockDeviceSimulator(const std::string& fname);
 	~BlockDeviceSimulator();
 
 	void read(size_t addr, size_t size, char* ans);
 	void write(size_t addr, size_t size, const char* data);
 
-	static const int DEVICE_SIZE = 1024 * 1024;
+	static constexpr int DEVICE_SIZE = 1024 * 1024;
 
   private:
 	int fd;

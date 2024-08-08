@@ -4,7 +4,7 @@
 // Initialize static members
 
 shellPrompt::shellPrompt()
-	: cursorPosition(0), orig_termios(), prompt(">"), promptLength(2), commandHistory(HISTORY_LENGTH) {
+	: cursorPosition(0), orig_termios(), prompt(">"), promptLength(2), commandHistory(MAX_HISTORY_LENGTH) {
 	// could fail when piping like:
 	// program | "1234"
 	if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) {

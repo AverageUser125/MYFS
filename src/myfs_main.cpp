@@ -1,8 +1,88 @@
-#include "Helper.hpp"
-#include "blkdev.hpp"
-#include "goodkilo.hpp"
-#include "myfs.hpp"
-#include "shellPrompt.hpp"
+
+#include "myfs_main.hpp"
+
+std::string addCurrentDirAdvance(const std::string& path, const std::string& currentDir) {
+	const std::vector<std::string> specialDirectory = {"..", "."};
+	std::string currentPath = currentDir; // Start from the given currentDir
+	std::vector<std::string> pathTokens;
+
+	bool isAction = false;
+
+	// if it is just "/", no checks needed
+	if (path.empty() || path == "/") {
+		return "/";
+	}
+	if (path == ".") {
+		return currentDir;
+	}
+
+	if (path[0] == '/') {
+		currentPath = "/";
+	}
+	std::istringstream stream(path);
+
+	// account for start with ./ means current directory
+	if (path.substr(0, 2) == "./") {
+		stream.ignore(2);
+	}
+
+	std::string token;
+	while (std::getline(stream, token, '/')) {
+		pathTokens.push_back(token);
+	}
+
+	// check for special characters
+	for (const auto& token : pathTokens) {
+		// checks for special characters; sets action
+		isAction = token == specialDirectory[1] || token == specialDirectory[0];
+
+		// action depending on character
+		if (isAction) { // ..
+			size_t index = currentPath.find_last_of('/');
+			if (index != std::string::npos) {
+				currentPath.erase(index);
+			}
+
+			if (currentPath.empty()) {
+				currentPath = "/";
+			}
+		} else { // Normal path
+			if (currentPath.empty() || currentPath == "/") {
+				currentPath += token;
+			} else {
+				currentPath += "/" + token;
+			}
+		}
+	}
+
+	// Ensure the path starts with a single "/"
+	if (currentPath.empty()) {
+		currentPath = "/";
+	} else if (currentPath[0] != '/') {
+		currentPath = "/" + currentPath;
+	}
+
+	return currentPath;
+}
+
+// clang-format off
+void printHelpMessage() {
+	std::cout
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA LIST_CMD"    <dir>" << std::setw(0) << YELLOW "Lists directory content.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA CONTENT_CMD"   <path>" << std::setw(0) << YELLOW "Shows file content.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA CREATE_FILE_CMD" <path>" << std::setw(0)<< YELLOW "Creates an empty file.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA CREATE_DIR_CMD" <path>" << std::setw(0) << YELLOW "Creates an empty directory.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA CD_CMD"    <path>" << std::setw(0) << YELLOW "Changes current directory.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA DELETE_CMD"    <path>" << std::setw(0) << YELLOW "Removes current directory.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA EDIT_CMD"  <path>" << std::setw(0) << YELLOW "Re-sets file content.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA MOVE_CMD"    <path1> <path2>" << std::setw(0) << YELLOW "Moves the file.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA COPY_CMD"    <path1> <path2>" << std::setw(0) << YELLOW "Copies a file.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA HELP_CMD << std::setw(0) << YELLOW "Shows this help message.\r\n" RESET
+        << std::setw(COLUMN_SPACING) << std::left << MAGENTA EXIT_CMD << std::setw(0) << YELLOW "Gracefully exit.\r\n" RESET;
+
+}
+
+// clang-format on
 
 std::vector<std::string> splitCmd(const std::string& cmd) {
 	std::vector<std::string> ans;
@@ -121,7 +201,7 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 			dlist = myfs.listDir(args[0]);
 		}
 		for (EntryInfo& entry : dlist) {
-			entry.path = splitPath(entry.path).second;
+			entry.path = MyFs::splitPath(entry.path).second;
 		}
 		printEntries(dlist);
 
@@ -239,6 +319,7 @@ int main(int argc, char** argv) {
 	}
 
 	std::string currentDir = "/";
+	// may fail, if can't create file, or file is read-only
 	BlockDeviceSimulator blkdevptr(bldevfile);
 	MyFs myfs(&blkdevptr);
 

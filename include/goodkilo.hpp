@@ -2,10 +2,6 @@
 #ifndef GOODKILO_H
 #define GOODKILO_H
 
-#define KILO_VERSION "0.0.2"
-
-#define WELCOME_MESSAGE "Kilo editor -- verison " KILO_VERSION "\x1b[0K\r\n"
-#define TAB_SIZE 8
 #define KILO_QUERY_LEN 256
 #define ABUF_INIT {NULL, 0}
 #define MAX_STATUS_LENGTH 80
@@ -13,7 +9,7 @@
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 #include "myfs.hpp"
-#include "Helper.hpp"
+#include "config.hpp"
 
 /* Syntax highlight types */
 enum syntaxHighlight {

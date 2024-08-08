@@ -1,4 +1,5 @@
 #include "goodkilo.hpp"
+#include "myfs.hpp"
 #include <stdexcept>
 /* C / C++ */
 
@@ -534,7 +535,7 @@ int editorSave(MyFs& myfs) {
 			editorSetStatusMessage("Save aborted");
 			return 1;
 		}
-		std::string absoluteFilename = addCurrentDir(promptedFilename, "/");
+		std::string absoluteFilename = MyFs::addCurrentDir(promptedFilename, "/");
 		free(promptedFilename);
 
 		try {
@@ -1042,7 +1043,7 @@ void editorStart(MyFs& myfs, const char* filenameIn) {
 	enableRawMode();
 
 	if (filenameIn != nullptr) {
-		std::string filename = addCurrentDir(filenameIn, "/");
+		std::string filename = MyFs::addCurrentDir(filenameIn, "/");
 		editorOpen(filename.data(), myfs);
 	}
 

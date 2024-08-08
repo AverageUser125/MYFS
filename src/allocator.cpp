@@ -1,6 +1,6 @@
 #include "allocator.hpp"
 #include "EntryInfo.hpp"
-#include "Helper.hpp"
+#include "config.hpp"
 
 AddressAllocator::AddressAllocator(size_t firstAddress_, size_t lastAddress_)
 	: firstAddress(firstAddress_), lastAddress(lastAddress_), BLOCK_SIZE(DEFAULT_BLOCK_SIZE) {
@@ -159,9 +159,9 @@ void AddressAllocator::defrag(std::set<EntryInfo>& entries, BlockDeviceSimulator
 	// Step 3: Make sure root is at the beginning
 	auto it = std::find_if(allEntries.begin(), allEntries.end(), [](const EntryInfo& a) { return a.path == "/"; });
 	assert(it != allEntries.end());
-	EntryInfo rootEntry = *it;  // root obviously must exist
+	EntryInfo rootEntry = *it; // root obviously must exist
 	allEntries.erase(it);
-	
+
 	std::vector<char> buffer;
 	buffer.resize(rootEntry.size);
 	blkdevsim->read(rootEntry.address, rootEntry.size, buffer.data());

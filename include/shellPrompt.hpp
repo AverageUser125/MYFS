@@ -12,17 +12,30 @@
 #include <deque>
 #include <regex>
 #include <csignal>
-#include "Helper.hpp"
+#include "config.hpp"
 #include "goodkilo.hpp"
 
-#define HISTORY_LENGTH 5
+// Console colors
+#define RESET "\033[0m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define BLUE "\033[34m"
+#define MAGENTA "\033[35m"
+#define CYAN "\033[36m"
+#define WHITE "\033[37m"
+#define BOLDYELLOW "\033[1m\033[33m"
+#define BOLDGREEN "\033[01;32m"
+#define BOLDBLUE "\033[01;34m"
+
+#define MAX_HISTORY_LENGTH 5
 #define MAX_INPUT_LENGTH 88
 #define MAX_SCREEN_SIZE 999
 
 class CommandHistory {
   private:
 	std::deque<std::string> history;
-	size_t max_size;
+	const size_t max_size;
 	size_t current_index; // Index for navigation
 	bool is_at_end = false;
 

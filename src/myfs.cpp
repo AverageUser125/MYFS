@@ -1,5 +1,5 @@
 #include "myfs.hpp"
-#include "Helper.hpp"
+#include "config.hpp"
 
 // const std::string MyFs::MYFS_MAGIC = "MYFS";
 //const uint8_t MyFs::CURR_VERSION = 0x03;
@@ -14,10 +14,8 @@ MyFs::MyFs(BlockDeviceSimulator* blkdevsim_)
 		// allocator.defrag(entries, blkdevsim);
 	} catch (const std::exception& e) {
 		std::cerr << "Error loading file system: " << e.what() << std::endl;
-		std::cout << CYAN "Creating new file system instance..." << std::endl;
 		allocator.initialize(entries, BLOCK_SIZE);
 		format();
-		std::cout << GREEN "Finished!" RESET << std::endl;
 	}
 }
 
@@ -248,7 +246,7 @@ EntryInfo MyFs::createFile(const std::string& filepath) {
 	}
 	// Create the file entry
 	EntryInfo newEntry;
-	newEntry.path = ensureStartsWithSlash(filepath);
+	newEntry.path = filepath;
 	newEntry.type = FILE_TYPE;
 	newEntry.size = 0;
 	newEntry.address = -1;
@@ -270,7 +268,7 @@ EntryInfo MyFs::createDirectory(const std::string& filepath) {
 
 	// Create the file entry
 	EntryInfo newEntry;
-	newEntry.path = ensureStartsWithSlash(filepath);
+	newEntry.path = filepath;
 	newEntry.type = DIRECTORY_TYPE;
 	newEntry.size = 0;
 	newEntry.address = -1;
@@ -328,7 +326,7 @@ void MyFs::writeDirectoryEntries(const EntryInfo& directoryEntry, const std::vec
 }
 
 void MyFs::addFileToDirectory(const std::string& directoryPath, const std::string& filename) {
-	std::optional<EntryInfo> directoryEntryOpt = getEntryInfo(ensureStartsWithSlash(directoryPath));
+	std::optional<EntryInfo> directoryEntryOpt = getEntryInfo(directoryPath);
 	if (!directoryEntryOpt || directoryEntryOpt->type != DIRECTORY_TYPE) {
 		throw std::runtime_error("Invalid directory1: " + directoryPath);
 	}
@@ -518,6 +516,39 @@ void MyFs::copy(const std::string& srcfilepath, const std::string& dstfilepath) 
 			}
 		}
 	}
+}
+
+std::pair<std::string, std::string> MyFs::splitPath(const std::string& filepath) {
+	size_t pos = filepath.find_last_of('/');
+	if (pos == std::string::npos) {
+		// No directory separator found, the whole path is the filename
+		return {"", filepath};
+	}
+
+	if (pos == 0) {
+		// The directory is the root "/"
+		return {"/", filepath.substr(1)};
+	}
+
+	std::string directory = filepath.substr(0, pos);
+	std::string filename = filepath.substr(pos + 1);
+	return {directory, filename};
+}
+
+std::string MyFs::addCurrentDir(const std::string& filename, const std::string& currentDir) {
+	if (filename.empty() || filename[0] == '/') {
+		return filename;
+	}
+	if (currentDir.back() == '/') {
+		if (filename[0] == '/') {
+			return currentDir + filename.substr(1);
+		}
+		return currentDir + filename;
+	}
+	if (filename[0] == '/') {
+		return currentDir + filename;
+	}
+	return currentDir + "/" + filename;
 }
 
 #pragma endregion
