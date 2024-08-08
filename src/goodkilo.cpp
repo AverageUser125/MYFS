@@ -603,7 +603,7 @@ inline void abFree(struct abuf* ab) {
 }
 
 void welcomeMessage(struct abuf* ab) {
-	std::array<char, 80> welcome{};
+	std::array<char, MAX_STATUS_LENGTH> welcome{};
 	int welcomelen = snprintf(welcome.data(), welcome.size(), WELCOME_MESSAGE);
 	int padding = (E.screencols - welcomelen) / 2;
 	if (padding != 0) {
@@ -667,8 +667,8 @@ void editorRefreshScreen() {
 	/* Create a two rows status. First row: */
 	abAppend(&ab, "\x1b[0K", 4);
 	abAppend(&ab, "\x1b[7m", 4);
-	std::array<char, 80> status{};
-	std::array<char, 80> rstatus{};
+	std::array<char, MAX_STATUS_LENGTH> status{};
+	std::array<char, MAX_STATUS_LENGTH> rstatus{};
 	int len = snprintf(status.data(), status.size(), "%.20s - %d lines %s",
 					   E.filename != nullptr ? E.filename : "[No Name]", E.numrows, E.dirty ? "(modified)" : "");
 	int rlen = snprintf(rstatus.data(), rstatus.size(), "%d/%d", E.rowoff + E.cy + 1, E.numrows);
@@ -701,7 +701,7 @@ void editorRefreshScreen() {
 	if (row != nullptr) {
 		for (j = E.coloff; j < (E.cx + E.coloff); j++) {
 			if (j < row->size && row->chars[j] == TAB)
-				cx += 7 - ((cx) % 8);
+				cx += (TAB_SIZE - 1) - ((cx) % TAB_SIZE);
 			cx++;
 		}
 	}
@@ -725,7 +725,6 @@ void editorSetStatusMessage(const char* fmt, ...) {
 
 /* =============================== Find mode ================================ */
 
-#define KILO_QUERY_LEN 256
 
 void editorFind() {
 	std::array<char, KILO_QUERY_LEN + 1> query = {0};

@@ -5,6 +5,10 @@
 #define KILO_VERSION "0.0.2"
 
 #define WELCOME_MESSAGE "Kilo editor -- verison " KILO_VERSION "\x1b[0K\r\n"
+#define TAB_SIZE 8
+#define KILO_QUERY_LEN 256
+#define ABUF_INIT {NULL, 0}
+#define MAX_STATUS_LENGTH 80
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
@@ -23,9 +27,6 @@ enum syntaxHighlight {
 	HL_NUMBER,
 	HL_MATCH /* Search match. */
 };
-
-#define HL_HIGHLIGHT_STRINGS (1 << 0)
-#define HL_HIGHLIGHT_NUMBERS (1 << 1)
 
 /* This structure represents a single line of the file we are editing. */
 using erow = struct erow {
@@ -50,7 +51,7 @@ struct editorConfig {
 	erow* row;		/* Rows */
 	bool dirty;		/* File modified but not saved. */
 	char* filename; /* Currently open filename */
-	std::array<char, 80> statusmsg;
+	std::array<char, MAX_STATUS_LENGTH> statusmsg;
 	time_t statusmsg_time;
 	struct editorSyntax* syntax; /* Current syntax highlight, or NULL. */
 };
@@ -88,8 +89,6 @@ using abuf = struct abuf {
 	char* b;
 	int len;
 };
-
-#define ABUF_INIT {NULL, 0}
 
 /*** row operations ***/
 void editorRowAppendString(erow* row, char* s, size_t len);
