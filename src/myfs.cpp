@@ -357,6 +357,9 @@ void MyFs::removeFileFromDirectory(const std::string& directoryPath, const std::
 	// Modify directory entries
 	auto it = std::find(directoryEntries.begin(), directoryEntries.end(), filename);
 	if (it == directoryEntries.end()) {
+		if(filename == "/" || filename == " " || filename.empty() || filename == "\n" || filename == "\r" || filename == "\t" || filename == "." || filename == "..") [[unlikely]] {
+			return;
+		}
 		throw std::runtime_error("File not found in the directory: " + filename);
 	}
 	directoryEntries.erase(it);
