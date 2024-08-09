@@ -30,3 +30,4 @@ Additionally, a custom 'help' command is available to provide further assistance
 - https://github.com/antirez/kilo
 - https://gitlab.com/magshimim0/archi/file-system
 - https://stackoverflow.com/questions/32719523/unix-path-resolution-in-c
+- https://youtu.be/_ccDqRTx-JU?si=l2zQnza2r4Kn4eI9
