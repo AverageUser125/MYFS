@@ -5,13 +5,14 @@
 #include "config.hpp"
 #include <set>
 #include <map>
+#include <sys/types.h>
 #include <vector>
 #include <algorithm>
 #include <functional>
 
 class AddressAllocator {
   public:
-	AddressAllocator(size_t firstAddress_, size_t lastAddress_);
+	AddressAllocator(size_t firstAddress_, size_t lastAddress_, uint16_t BLOCK_SIZE_);
 
 	void initialize(const std::set<EntryInfo>& entries, const uint16_t BLOCK_SIZE_);
 

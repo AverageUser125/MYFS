@@ -2,9 +2,10 @@
 #include "EntryInfo.hpp"
 #include "config.hpp"
 
-AddressAllocator::AddressAllocator(size_t firstAddress_, size_t lastAddress_)
-	: firstAddress(firstAddress_), lastAddress(lastAddress_), BLOCK_SIZE(DEFAULT_BLOCK_SIZE) {
+AddressAllocator::AddressAllocator(size_t firstAddress_, size_t lastAddress_, uint16_t BLOCK_SIZE_)
+	: firstAddress(firstAddress_), lastAddress(lastAddress_), BLOCK_SIZE(BLOCK_SIZE_) {
 	assert(lastAddress > firstAddress + BLOCK_SIZE);
+	freeSpaces.emplace(firstAddress, lastAddress - firstAddress);
 }
 
 void AddressAllocator::initialize(const std::set<EntryInfo>& entries, const uint16_t BLOCK_SIZE_) {
