@@ -328,10 +328,11 @@ int main(int argc, char** argv) {
 	std::cout << "To get help, please type 'help' on the prompt below.\r\n" << std::endl;
 
 	shellPrompt shell;
-	shell.setPrompt(BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ");
 
 	bool exit = false;
 	while (!exit) {
+		shell.setPrompt(BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ");
+
 		std::string cmdline = shell.readInput();
 		if (cmdline.empty()) {
 			continue;
