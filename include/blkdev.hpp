@@ -8,25 +8,28 @@
 #include <stdexcept>
 #include <cerrno>
 #include <cstdio>
-#include <unistd.h>
 #include <cstdlib>
 #include <cstring>
 #include <system_error>
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#undef DELETE
 
-#define NEW_FILE_PERMISSIONS 0644
+constexpr int NEW_FILE_PERMISSIONS = 0644;
 
 class BlockDeviceSimulator {
   public:
 	explicit BlockDeviceSimulator(const std::string& fname);
 	~BlockDeviceSimulator();
 
-	void read(size_t addr, size_t size, char* ans);
+	void read(size_t addr, size_t size, char* ans) const;
 	void write(size_t addr, size_t size, const char* data);
 
 	static constexpr int DEVICE_SIZE = 1024 * 1024;
 
   private:
-	int fd;
+	HANDLE fd;
 	unsigned char* filemap;
 };
 

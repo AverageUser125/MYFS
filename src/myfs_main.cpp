@@ -1,6 +1,7 @@
 
 #include "myfs_main.hpp"
 
+
 std::string addCurrentDirAdvance(const std::string& path, const std::string& currentDir) {
 	const std::vector<std::string> specialDirectory = {"..", "."};
 	std::string currentPath = currentDir; // Start from the given currentDir
@@ -135,23 +136,22 @@ CommandType getCommandType(const std::string& cmd) {
 }
 
 void editFile(MyFs& myfs, const std::string& fileLocation) {
-
-	if (fileLocation.empty()) {
-		editorStart(myfs, nullptr);
-	}
-
 	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(fileLocation);
 	if (entryOpt) {
 		EntryInfo entry = *entryOpt;
 		if (entry.type != FILE_TYPE) {
 			throw std::runtime_error("Can only edit files");
 		}
+	} 
+	std::cout << "Enter new file content" << std::endl;
+	std::string content;
+	std::string curr_line;
+	std::getline(std::cin, curr_line);
+	while (curr_line != "") {
+		content += curr_line + "\n";
+		std::getline(std::cin, curr_line);
 	}
-
-	try {
-		editorStart(myfs, fileLocation.c_str());
-	} catch (std::runtime_error& e) {
-	}
+	myfs.setContent(fileLocation, content);
 }
 
 void printEntries(const std::vector<EntryInfo>& entries) {
@@ -327,13 +327,14 @@ int main(int argc, char** argv) {
 	std::cout << GREEN << MENU_ASCII_ART << RESET << std::endl;
 	std::cout << "To get help, please type 'help' on the prompt below.\r\n" << std::endl;
 
-	shellPrompt shell;
 
 	bool exit = false;
 	while (!exit) {
-		shell.setPrompt(BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ");
+		std:: cout << (BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ");
 
-		std::string cmdline = shell.readInput();
+		std::string cmdline;
+		std::getline(std::cin, cmdline, '\n');
+
 		if (cmdline.empty()) {
 			continue;
 		}

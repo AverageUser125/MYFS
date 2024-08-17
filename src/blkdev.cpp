@@ -1,46 +1,54 @@
 #include "blkdev.hpp"
-#include <sys/mman.h>
 #include "config.hpp"
 
-BlockDeviceSimulator::BlockDeviceSimulator(const std::string& fname) : fd(-1), filemap(nullptr) {
+BlockDeviceSimulator::BlockDeviceSimulator(const std::string& fname) : fd(INVALID_HANDLE_VALUE), filemap(nullptr) {
 	// Check if the file exists
-	if (access(fname.c_str(), F_OK) == -1) {
-		// File doesn't exist, create it
-		fd = open(fname.c_str(), O_CREAT | O_RDWR | O_EXCL, NEW_FILE_PERMISSIONS);
-		if (fd == -1) {
-			throw std::system_error(errno, std::generic_category(), "Failed to create file");
-		}
+	fd = CreateFileA(fname.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+					 nullptr);
 
-		if (lseek(fd, DEVICE_SIZE - 1, SEEK_SET) == -1) {
-			close(fd);
-			throw std::system_error(errno, std::generic_category(), "Failed to seek in file");
-		}
+	if (fd == INVALID_HANDLE_VALUE) {
+		throw std::system_error(GetLastError(), std::system_category(), "Failed to open or create file");
+	}
 
-		if (::write(fd, "\0", 1) == -1) {
-			close(fd);
-			throw std::system_error(errno, std::generic_category(), "Failed to write initial data to file");
-		}
-	} else {
-		// File exists, open it
-		fd = open(fname.c_str(), O_RDWR);
-		if (fd == -1) {
-			throw std::system_error(errno, std::generic_category(), "Failed to open file");
+	// If the file was newly created, set its size
+	if (GetLastError() == ERROR_ALREADY_EXISTS) {
+		LARGE_INTEGER size{};
+		size.QuadPart = DEVICE_SIZE;
+		if (SetFilePointerEx(fd, size, nullptr, FILE_BEGIN) == 0 || SetEndOfFile(fd) == 0) {
+			CloseHandle(fd);
+			throw std::system_error(GetLastError(), std::system_category(), "Failed to set file size");
 		}
 	}
 
-	filemap = static_cast<unsigned char*>(mmap(nullptr, DEVICE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
-	if (filemap == MAP_FAILED) {
-		close(fd);
-		throw std::system_error(errno, std::generic_category(), "Failed to mmap file");
+	HANDLE hFileMapping = CreateFileMappingA(fd, nullptr, PAGE_READWRITE, 0, DEVICE_SIZE, nullptr);
+
+	if (hFileMapping == nullptr) {
+		CloseHandle(fd);
+		throw std::system_error(GetLastError(), std::system_category(), "Failed to create file mapping");
 	}
+
+	filemap =
+		static_cast<unsigned char*>(MapViewOfFile(hFileMapping, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, DEVICE_SIZE));
+
+	if (filemap == nullptr) {
+		CloseHandle(hFileMapping);
+		CloseHandle(fd);
+		throw std::system_error(GetLastError(), std::system_category(), "Failed to map view of file");
+	}
+
+	CloseHandle(hFileMapping); // We can close the mapping handle after mapping the view
 }
 
 BlockDeviceSimulator::~BlockDeviceSimulator() {
-	munmap(filemap, DEVICE_SIZE);
-	close(fd);
+	if (filemap) {
+		UnmapViewOfFile(filemap);
+	}
+	if (fd != INVALID_HANDLE_VALUE) {
+		CloseHandle(fd);
+	}
 }
 
-void BlockDeviceSimulator::read(size_t addr, size_t size, char* ans) {
+void BlockDeviceSimulator::read(size_t addr, size_t size, char* ans) const {
 	memcpy(ans, filemap + addr, size);
 }
 

@@ -13,6 +13,7 @@ Generated\ Files/
 
 # Build results
 build/
+out/
 compile_commands.json
 
 # Own files

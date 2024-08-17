@@ -9,10 +9,10 @@ enum EntryTypes : uint8_t {
 };
 
 using EntryInfo = struct EntryInfo {
-	std::string path;
-	size_t size;
-	size_t address;
-	EntryTypes type;
+	std::string path = "/";
+	size_t size = 0;
+	size_t address = 0;
+	EntryTypes type = EntryTypes::FILE_TYPE;
 
 	bool operator<(const EntryInfo& other) const {
 		return path < other.path;

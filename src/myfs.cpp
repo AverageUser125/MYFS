@@ -1,5 +1,6 @@
 #include "myfs.hpp"
 #include "config.hpp"
+#include <array>
 
 // const std::string MyFs::MYFS_MAGIC = "MYFS";
 //const uint8_t MyFs::CURR_VERSION = 0x03;
@@ -89,7 +90,7 @@ void MyFs::load() {
 		EntryInfo entry;
 		entry.deserialize(buffer.data());
 		// Validate path length
-		if (entry.path.size() > MAX_PATH_LENGTH) {
+		if (entry.path.size() > MAX_PATH) {
 			throw std::runtime_error("Path exceeds maximum length.");
 		}
 		// Calculate the full entry size
@@ -326,7 +327,7 @@ void MyFs::addFileToDirectory(const std::string& directoryPath, const std::strin
 	const EntryInfo& directoryEntry = *directoryEntryOpt;
 
 	if (filename == "/" || filename == " " || filename.empty() || filename == "\n" || filename == "\r" ||
-		filename == "\t" || filename == "." || filename == "..") [[unlikely]] {
+		filename == "\t" || filename == "." || filename == "..")  {
 		return;
 	}
 	// Read directory entries
@@ -357,7 +358,7 @@ void MyFs::removeFileFromDirectory(const std::string& directoryPath, const std::
 	// Modify directory entries
 	auto it = std::find(directoryEntries.begin(), directoryEntries.end(), filename);
 	if (it == directoryEntries.end()) {
-		if(filename == " " || filename.empty()) [[unlikely]] {
+		if(filename == " " || filename.empty())  {
 			return;
 		}
 		throw std::runtime_error("File not found in the directory: " + filename);
@@ -424,7 +425,7 @@ void MyFs::remove(const std::string& filepath) {
 				// incase
 			}
 		}
-		if (filepath != "/") [[unlikely]] {
+		if (filepath != "/")  {
 			removeTableEntry(entry);
 		}
 	}
@@ -440,7 +441,7 @@ void MyFs::move(const std::string& srcfilepath, const std::string& dstfilepath) 
 	if (isFileExists(dstfilepath)) {
 		throw std::runtime_error("file " + dstfilepath + " already exists");
 	}
-	if (dstfilepath == "/" || srcfilepath == "/") [[unlikely]] {
+	if (dstfilepath == "/" || srcfilepath == "/")  {
 		throw std::runtime_error("root ain't moving, so stop it");
 	}
 	if (dstfilepath.find(srcfilepath) == 0 && dstfilepath[srcfilepath.length()] == '/') {
@@ -479,7 +480,7 @@ void MyFs::copy(const std::string& srcfilepath, const std::string& dstfilepath) 
 		throw std::runtime_error("file " + dstfilepath + " already exists");
 	}
 	// Check if destPath starts with srcPath and is immediately followed by a slash or nothing
-	if (srcfilepath == "/") [[unlikely]] {
+	if (srcfilepath == "/")  {
 
 		throw std::runtime_error("copying root will always cause recursive copy.");
 	}

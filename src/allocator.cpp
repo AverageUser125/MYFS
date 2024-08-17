@@ -121,23 +121,32 @@ inline size_t AddressAllocator::alignToBlockSize(const size_t size) const {
 }
 
 void AddressAllocator::mergeFreeSpaces(size_t startAddress, size_t size) {
-	// merges ONLY adjacent free spaces
-	// can be remove and it will work, just be less memory efficient
 	auto it = freeSpaces.find(startAddress);
-	size_t prevAddress = std::prev(it)->first;
-	size_t nextAddress = std::next(it)->first;
-
-	if (nextAddress != freeSpaces.rbegin()->first && startAddress + freeSpaces[startAddress] == nextAddress) {
-		size += freeSpaces[nextAddress];
-		freeSpaces.erase(nextAddress);
+	if (it == freeSpaces.end()) {
+		// If the startAddress is not found, no merging can be done.
+		return;
 	}
 
-	if (prevAddress != freeSpaces.begin()->first && prevAddress + freeSpaces[prevAddress] == startAddress) {
-		size += freeSpaces[prevAddress];
-		freeSpaces.erase(startAddress);
-		startAddress = prevAddress;
+	// Check if there's a previous element
+	if (it != freeSpaces.begin()) {
+		auto prevIt = std::prev(it);
+		if (prevIt->first + prevIt->second == startAddress) {
+			// Merge with the previous block
+			startAddress = prevIt->first;
+			size += prevIt->second;
+			freeSpaces.erase(prevIt);
+		}
 	}
 
+	// Check if there's a next element
+	auto nextIt = std::next(it);
+	if (nextIt != freeSpaces.end() && startAddress + size == nextIt->first) {
+		// Merge with the next block
+		size += nextIt->second;
+		freeSpaces.erase(nextIt);
+	}
+
+	// Update the size of the merged free space
 	freeSpaces[startAddress] = size;
 }
 

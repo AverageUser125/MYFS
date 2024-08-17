@@ -21,7 +21,7 @@ if(POLICY CMP0069)
 endif()
 
 # /Zi and /GL are incompatible, so here
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)
 else()
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)	
@@ -36,13 +36,9 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     # Enable SIMD optimizations, Show all warnings, (except contexpr)
-    add_compile_options(/arch:AVX2 -Wall -EHsc)
+    add_compile_options(/arch:AVX2 /W4 /EHsc)
     # Disable CRT secure warnings
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-else()
-    # Show all warnings, just nice to have(excpet #pragma region)
-    add_compile_options(-march=native)
-    add_compile_options(-Wall -Wextra -Wno-unknown-pragmas)
 endif()
 
 # Enable Hot Reload for MSVC compilers if supported, came with the default file
@@ -54,21 +50,16 @@ endif()
 project("${PROJECT_NAME}")
 
 # lsp stuff
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# add_definitions(-DSOME_DEFINITION)
 
 # Add source files recursively from the src directory
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-add_definitions(-DSOME_DEFINITION)
 
 # Add source to this project's executable
 add_executable(${PROJECT_NAME} ${MY_SOURCES})
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
-
-if(MSVC)
-    # Set linker flags for Windows subsystem and entry point
-    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
-endif()
 
 if(PRODUCTION_BUILD)
     # setup the ASSETS_PATH macro to be in the root folder of your exe
@@ -85,6 +76,6 @@ endif()
 target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 
 # Specify the output directory for the build
-set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
+# set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
 # Specify the output directory for the build (/build/bin directory)
 # set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")

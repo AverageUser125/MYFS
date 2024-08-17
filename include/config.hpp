@@ -3,24 +3,15 @@
 #include <cassert>
 
 #pragma region myfsSettings
-#define MYFS_MAGIC "MYFS"
+constexpr const char* const MYFS_MAGIC = "MYFS";
 #define CURR_VERSION 0x03
-#define MAX_DIRECTORY_SIZE 6
-#define FAT_SIZE 4096
-#define MAX_PATH_LENGTH 256
-#pragma endregion
-
-#pragma region editorSettings
-#define KILO_QUIT_TIMES 3
-#define KILO_VERSION "0.0.2"
-#define WELCOME_MESSAGE "Kilo editor -- verison " KILO_VERSION "\x1b[0K\r\n"
-#define TAB_SIZE 8
+constexpr size_t MAX_DIRECTORY_SIZE = 6;
+constexpr size_t FAT_SIZE = 4096;
 #pragma endregion
 
 // clang-format off
 #pragma region shellSettings
 #define FS_NAME "myfs"
-#define MAX_HISTORY_LENGTH 5
 
 // Commands
 #define LIST_CMD 			  "ls"
@@ -38,7 +29,7 @@
 
 
 // reasons to not be using std::string: https://wiki.sei.cmu.edu/confluence/display/cplusplus/ERR58-CPP.+Handle+all+exceptions+thrown+before+main()+begins+executing
-static const char* const MENU_ASCII_ART =    
+constexpr const char* const MENU_ASCII_ART =    
     "\n\n"
     "                   $$$$$$$$$\\$$\\ $$\\                  $$$$$$\\                        $$\\                             \r\n"
     "                   $$  _____|\\__|$$ |                $$  __$$\\                       $$ |                            \r\n"
@@ -74,12 +65,7 @@ enum class CommandType {
 
 // Set allocator block size depending on if 32 bit or 64 bit, work in linux only
 // why do I do this you may ask? malloc does the same so why not?
-#if __GNUC__
-#if __x86_64__ || __ppc64__
+
 #define DEFAULT_BLOCK_SIZE 32
-#else
-#define DEFAULT_BLOCK_SIZE 16
-#endif
-#endif
 
 #pragma endregion

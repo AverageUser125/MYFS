@@ -1,12 +1,22 @@
 #pragma once
 
+#define RESET "\033[0m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define BLUE "\033[34m"
+#define MAGENTA "\033[35m"
+#define CYAN "\033[36m"
+#define WHITE "\033[37m"
+#define BOLDYELLOW "\033[1m\033[33m"
+#define BOLDGREEN "\033[01;32m"
+#define BOLDBLUE "\033[01;34m"
+
 #include "config.hpp"
 #include "myfs.hpp"
 #include "blkdev.hpp"
-#include "goodkilo.hpp"
-#include "shellPrompt.hpp"
 #include <iomanip>
-
+#include <iostream>
 #include <cmath>
 
 // for the printEntires function
