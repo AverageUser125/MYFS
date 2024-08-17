@@ -15,11 +15,12 @@ $ git clone https://github.com/AverageUser125/MYFS.git
 
 
 ## Usage
-After successfully installing the repository, open a command line, navigate to the project's folder and type the following commands:
-
+After successfully installing the repository:
 ```console
-$ ./build.sh
-$ ./myfs test
+1. Open the directory in file explorer
+2. Right click on the background (not a file)
+3. press the Visual Studio icon
+4. wait and press the run button
 ```
 
 The usage of this project follows a similar convention to working with commands in a Linux environment, making it intuitive for users familiar with Linux systems. 
