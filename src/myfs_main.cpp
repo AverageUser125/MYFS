@@ -1,5 +1,6 @@
 
 #include "myfs_main.hpp"
+#include "editor.hpp"
 
 
 std::string addCurrentDirAdvance(const std::string& path, const std::string& currentDir) {
@@ -136,6 +137,8 @@ CommandType getCommandType(const std::string& cmd) {
 }
 
 void editFile(MyFs& myfs, const std::string& fileLocation) {
+	editorStart(myfs, fileLocation.c_str());
+	return;
 	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(fileLocation);
 	if (entryOpt) {
 		EntryInfo entry = *entryOpt;

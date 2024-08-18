@@ -9,6 +9,13 @@ constexpr size_t MAX_DIRECTORY_SIZE = 6;
 constexpr size_t FAT_SIZE = 4096;
 #pragma endregion
 
+#pragma region editor
+#define KILO_QUIT_TIMES 3
+#define KILO_VERSION "0.0.2"
+#define WELCOME_MESSAGE "Kilo editor -- verison " KILO_VERSION "\x1b[0K\r\n"
+#define TAB_SIZE 8
+#pragma endregion
+
 // clang-format off
 #pragma region shellSettings
 #define FS_NAME "myfs"
