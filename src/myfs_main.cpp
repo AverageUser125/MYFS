@@ -140,27 +140,6 @@ CommandType getCommandType(const std::string& cmd) {
 	return (it != commandMap.end()) ? it->second : CommandType::UNKNOWN;
 }
 
-void editFile(MyFs& myfs, const std::string& fileLocation) {
-	editorStart(myfs, fileLocation.c_str());
-	return;
-	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(fileLocation);
-	if (entryOpt) {
-		EntryInfo entry = *entryOpt;
-		if (entry.type != FILE_TYPE) {
-			throw std::runtime_error("Can only edit files");
-		}
-	} 
-	std::cout << "Enter new file content" << std::endl;
-	std::string content;
-	std::string curr_line;
-	std::getline(std::cin, curr_line);
-	while (curr_line != "") {
-		content += curr_line + "\n";
-		std::getline(std::cin, curr_line);
-	}
-	myfs.setContent(fileLocation, content);
-}
-
 void printEntries(const std::vector<EntryInfo>& entries) {
 	// Find the maximum width for address and size
 	size_t maxAddressWidth = 0;
@@ -232,9 +211,6 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 			throw std::runtime_error("File doesn't exist");
 		}
 		EntryInfo entry = *entryOpt;
-		if (entry.type != FILE_TYPE) {
-			throw std::runtime_error("Can only get content of files");
-		}
 		std::string content = myfs.getContent(entry);
 		if (!content.empty() && content.back() != '\n') {
 			content += '\n';
@@ -254,9 +230,9 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 			throw std::runtime_error(EDIT_CMD " needs arguments");
 		}
 		if (args.size() == 1) {
-			editFile(myfs, args[0]);
+			editorStart(myfs, args[0].c_str());
 		} else {
-			editFile(myfs, "");
+			editorStart(myfs, "");
 		}
 		break;
 	}
@@ -315,7 +291,7 @@ int main(int argc, char** argv) {
 	if (argc == 1) {
 		std::cout << CYAN "Please enter the file name: " RESET;
 		std::cin >> bldevfile;
-		bldevfile = RESOURCES_PATH + bldevfile;
+		bldevfile = RESOURCES_PATH + bldevfile + ".bin";
 		// Flush stdin to clear any leftover input
 		std::cin.clear();
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');

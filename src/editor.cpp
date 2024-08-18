@@ -251,9 +251,9 @@ void editorRefreshScreen() {
 	std::vector<char> ab(E.screencols * E.screenrows + 2, ' ');
 
 	// Fill buffer with content
-	for (int i = 0; i < E.screenrows - 2; ++i) {
-		unsigned int rowIndex = E.rowoff + i;
-		unsigned int startIdx = i * E.screencols;
+	for (size_t i = 0; i < E.screenrows - 2; ++i) {
+		size_t rowIndex = E.rowoff + i;
+		size_t startIdx = i * E.screencols;
 
 		if (rowIndex < static_cast<int>(E.rows.size())) {
 			const erow& row = E.rows[rowIndex];
@@ -278,15 +278,15 @@ void editorRefreshScreen() {
 	// Create the status line (first row)
 	std::array<char, MAX_STATUS_LENGTH> status{};
 	std::array<char, MAX_STATUS_LENGTH> rstatus{};
-	unsigned int len =
+	int len =
 		snprintf(status.data(), status.size(), "%.20s - %llu lines %s",
 					   E.filename.empty() ? "[No Name]" : E.filename.c_str(), E.rows.size(), E.dirty ? "(modified)" : "");
 
-	unsigned int rlen = snprintf(rstatus.data(), rstatus.size(), "%d/%llu", E.rowoff + E.cy + 1, E.rows.size());
+	int rlen = snprintf(rstatus.data(), rstatus.size(), "%zd/%llu", E.rowoff + E.cy + 1, E.rows.size());
 
 	// Write the status line into the buffer
-	len = std::min(len, E.screencols);
-	rlen = std::min(rlen, E.screencols);
+	len = std::min(static_cast<size_t>(len), E.screencols);
+	rlen = std::min(static_cast<size_t>(rlen), E.screencols);
 
 	int statusIndex = (E.screenrows - 2) * E.screencols;
 
@@ -299,7 +299,7 @@ void editorRefreshScreen() {
 	}
 
 	// Second status line (message update)
-	unsigned int msglen = strlen(E.statusmsg.data());
+	size_t msglen = strlen(E.statusmsg.data());
 	if ((msglen != 0) && (time(nullptr) - E.statusmsg_time < 5)) {
 		msglen = std::min(msglen, E.screencols);
 		int msgIndex = (E.screenrows - 1) * E.screencols;
@@ -660,10 +660,10 @@ void editorMoveCursor(int key) {
 
 /* Update the rendered version and the syntax highlight of a row. */
 void editorUpdateRow(erow* rows) {
-	unsigned int tabs = 0;
-	unsigned int nonprint = 0;
-	int j = 0;
-	int idx = 0;
+	size_t tabs = 0;
+	size_t nonprint = 0;
+	size_t j = 0;
+	size_t idx = 0;
 
 	/* Create a version of the row we can directly print on the screen,
      * respecting tabs, substituting non printable characters with '?'. */

@@ -73,6 +73,6 @@ enum class CommandType {
 // Set allocator block size depending on if 32 bit or 64 bit, work in linux only
 // why do I do this you may ask? malloc does the same so why not?
 
-#define DEFAULT_BLOCK_SIZE 32
+constexpr size_t DEFAULT_BLOCK_SIZE = sizeof(void*) * 4;
 
 #pragma endregion

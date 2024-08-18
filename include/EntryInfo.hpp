@@ -3,7 +3,7 @@
 #include <string>
 #include <cstring>
 
-enum EntryTypes : uint8_t {
+enum EntryTypes {
 	FILE_TYPE = 1,
 	DIRECTORY_TYPE
 };
