@@ -28,6 +28,7 @@ else()
 endif()
 
 # address sanitizer, incompatible with gdb
+# add_compile_options(/ZI-)
 # add_link_options(-fsanitize=address)
 # add_compile_options(-fsanitize=address)
 

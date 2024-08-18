@@ -245,6 +245,7 @@ EntryInfo MyFs::createFile(const std::string& filepath) {
 	newEntry.address = -1;
 
 	std::pair<std::string, std::string> pathAndName = splitPath(filepath);
+	
 	// Add the entry to the file system
 	addFileToDirectory(pathAndName.first, pathAndName.second);
 	addTableEntry(newEntry);
@@ -255,6 +256,9 @@ EntryInfo MyFs::createFile(const std::string& filepath) {
 #pragma region directoryIO
 
 EntryInfo MyFs::createDirectory(const std::string& filepath) {
+	if (filepath.empty()) {
+		throw std::runtime_error("invalid file path:" + filepath);
+	}
 	if (isFileExists(filepath)) {
 		throw std::runtime_error("Directory already exists");
 	}
@@ -266,10 +270,9 @@ EntryInfo MyFs::createDirectory(const std::string& filepath) {
 	newEntry.size = 0;
 	newEntry.address = -1;
 
+	// Add the entry to the file system
 	std::pair<std::string, std::string> pathAndName = splitPath(filepath);
 	addFileToDirectory(pathAndName.first, pathAndName.second);
-
-	// Add the entry to the file system
 	addTableEntry(newEntry);
 
 	save();

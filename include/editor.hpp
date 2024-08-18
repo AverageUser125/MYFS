@@ -19,9 +19,9 @@
 #include <cstdarg>
 
 using erow = struct erow {
-	int idx;		   /* Row index in the file, zero-based. */
-	int size;		   /* Size of the row, excluding the null term. */
-	int rsize;		   /* Size of the rendered row. */
+	unsigned int idx;  /* Row index in the file, zero-based. */
+	unsigned int size; /* Size of the row, excluding the null term. */
+	unsigned int rsize; /* Size of the rendered row. */
 	char* chars;	   /* Row content. */
 	char* render;	   /* Row content "rendered" for screen (for TABs). */
 	unsigned char* hl; /* Syntax highlight type for each character in render.*/
@@ -37,11 +37,11 @@ struct editorConfig {
 	std::array<char, MAX_STATUS_LENGTH> statusmsg = {0};
 	time_t statusmsg_time = 0;
 	struct editorSyntax* syntax = nullptr; /* Current syntax highlight, or NULL. */
-	int cx = 0, cy = 0;		/* Cursor x and y position in characters */
-	int rowoff= 0;		/* Offset of row displayed. */
-	int coloff= 0;		/* Offset of column displayed. */
-	int screenrows = 0; /* Number of rows that we can show */
-	int screencols = 0; /* Number of cols that we can show */
+	unsigned int cx = 0, cy = 0;		/* Cursor x and y position in characters */
+	unsigned  int rowoff = 0;			   /* Offset of row displayed. */
+	unsigned  int coloff = 0;			/* Offset of column displayed. */
+	unsigned int screenrows = 0;		   /* Number of rows that we can show */
+	unsigned  int screencols = 0;		/* Number of cols that we can show */
 	bool rawmode = false;	/* Raw mode*/
 	bool dirty = false;		/* File modified but not saved. */
 };
@@ -89,9 +89,10 @@ void editorInsertChar(int c);
 void editorRefreshScreen();
 void editorSetStatusMessage(const char* fmt, ...);
 int editorOpen(MyFs& myfs, const char* filename);
-char* editorPrompt(const char* prompt);
-int editorSave(MyFs& myfs);
-char* editorRowsToString(int* buflen);
+std::string editorPrompt(const char* prompt);
+
+	int editorSave(MyFs & myfs);
+	char* editorRowsToString(int* buflen);
 void editorInsertRow(int at, const char* s, size_t len);
 void editorStart(MyFs& myfs, const std::string& filenameIn);
 void disableRawMode();

@@ -14,7 +14,9 @@ void updateWindowSize() {
 
 		E.screencols = width;
 		E.screenrows = height; // Reserve space for status lines
-		editorRefreshScreen();
+		if (E.screenrows > 3) {
+			editorRefreshScreen();
+		}
 	}
 }
 
@@ -250,8 +252,8 @@ void editorRefreshScreen() {
 
 	// Fill buffer with content
 	for (int i = 0; i < E.screenrows - 2; ++i) {
-		int rowIndex = E.rowoff + i;
-		int startIdx = i * E.screencols;
+		unsigned int rowIndex = E.rowoff + i;
+		unsigned int startIdx = i * E.screencols;
 
 		if (rowIndex < static_cast<int>(E.rows.size())) {
 			const erow& row = E.rows[rowIndex];
@@ -276,10 +278,11 @@ void editorRefreshScreen() {
 	// Create the status line (first row)
 	std::array<char, MAX_STATUS_LENGTH> status{};
 	std::array<char, MAX_STATUS_LENGTH> rstatus{};
-	int len = snprintf(status.data(), status.size(), "%.20s - %llu lines %s",
+	unsigned int len =
+		snprintf(status.data(), status.size(), "%.20s - %llu lines %s",
 					   E.filename.empty() ? "[No Name]" : E.filename.c_str(), E.rows.size(), E.dirty ? "(modified)" : "");
 
-	int rlen = snprintf(rstatus.data(), rstatus.size(), "%d/%llu", E.rowoff + E.cy + 1, E.rows.size());
+	unsigned int rlen = snprintf(rstatus.data(), rstatus.size(), "%d/%llu", E.rowoff + E.cy + 1, E.rows.size());
 
 	// Write the status line into the buffer
 	len = std::min(len, E.screencols);
@@ -296,7 +299,7 @@ void editorRefreshScreen() {
 	}
 
 	// Second status line (message update)
-	int msglen = strlen(E.statusmsg.data());
+	unsigned int msglen = strlen(E.statusmsg.data());
 	if ((msglen != 0) && (time(nullptr) - E.statusmsg_time < 5)) {
 		msglen = std::min(msglen, E.screencols);
 		int msgIndex = (E.screenrows - 1) * E.screencols;
@@ -304,7 +307,8 @@ void editorRefreshScreen() {
 	}
 
 	// Fill the rest of the second status line with spaces
-	std::fill(ab.begin() + (E.screenrows - 1) * E.screencols + msglen, ab.begin() + E.screenrows * E.screencols, ' ');
+	std::fill(ab.begin() + static_cast<size_t>(E.screenrows - 1) * E.screencols + msglen,
+			  ab.begin() + static_cast<size_t> (E.screenrows) * E.screencols, ' ');
 
 
 	// Write the buffer to console
@@ -435,13 +439,14 @@ int editorOpen(MyFs& myfs, const char* filename) {
 	if (!myfs.isFileExists(MyFs::splitPath(filename).first)) {
 		return 1;
 	}
+	E.filename = filename;
+
 	if (!myfs.isFileExists(filename)) {
 		return -1;
 	}
 	E.dirty = false;
 	E.filename.clear();
 
-	E.filename = filename;
 
 	std::string content;
 	content = myfs.getContent(filename);
@@ -459,44 +464,31 @@ int editorOpen(MyFs& myfs, const char* filename) {
 		end = content.find('\n', start);
 	}
 
-	// Handle the last line if there's no newline at the end
-	//line = content.substr(start);
-	//if (!line.empty() && (line.back() == '\r')) {
-	//	line.pop_back();
-	//}
-	//editorInsertRow(E.numrows, line.c_str(), line.length());
-
 	E.dirty = false;
+	return 0;
 }
 
-char* editorPrompt(const char* prompt) {
-	size_t bufsize = 128;
-	char* buf = (char*)malloc(bufsize);
-	size_t buflen = 0;
-	buf[0] = '\0';
+std::string editorPrompt(const char* prompt) {
+	std::string buf = "";
 	while (true) {
-		editorSetStatusMessage(prompt, buf);
+		editorSetStatusMessage(prompt, buf.c_str());
 		editorRefreshScreen();
 		int c = readKey();
+
 		if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
-			if (buflen != 0)
-				buf[--buflen] = '\0';
-		} else if (c == '\x1b') {
+			if (!buf.empty()) {
+				buf.pop_back();
+			}
+		} else if (c == '\x1b') { // Escape key
 			editorSetStatusMessage("");
-			free(buf);
-			return nullptr;
-		} else if (c == '\r') {
-			if (buflen != 0) {
+			return "";			// Returning empty string to indicate cancellation
+		} else if (c == '\r' || c == '\n'|| c == CTRL_KEY('s')) { // Enter key
+			if (!buf.empty()) {
 				editorSetStatusMessage("");
 				return buf;
 			}
-		} else if ((iscntrl(c) == 0) && c < 128) {
-			if (buflen == bufsize - 1) {
-				bufsize *= 2;
-				buf = (char*)realloc(buf, bufsize);
-			}
-			buf[buflen++] = c;
-			buf[buflen] = '\0';
+		} else if (std::iscntrl(c) == 0 && c < 128) {
+			buf.push_back(static_cast<char>(c));
 		}
 	}
 }
@@ -505,13 +497,12 @@ char* editorPrompt(const char* prompt) {
 int editorSave(MyFs& myfs) {
 
 	if (E.filename.empty()) {
-		char* promptedFilename = editorPrompt("Save as: %s (ESC to cancel)");
-		if (promptedFilename == nullptr) {
+		std::string promptedFilename = editorPrompt("Save as: %s (ESC to cancel)");
+		if (promptedFilename.empty()) {
 			editorSetStatusMessage("Save aborted");
 			return 1;
 		}
 		std::string absoluteFilename = MyFs::addCurrentDir(promptedFilename, "/");
-		free(promptedFilename);
 
 		try {
 			if (myfs.isFileExists(absoluteFilename)) {
@@ -716,7 +707,7 @@ void editorInsertRow(int at, const char* s, size_t len) {
 	// Move the rows starting from the position `at` one place to the right.
 	if (at != E.rows.size() - 1) {
 		std::move(E.rows.begin() + at, E.rows.end() - 1, E.rows.begin() + at + 1);
-		for (size_t j = at + 1; j < E.rows.size(); j++)
+		for (int j = at + 1; j < E.rows.size(); j++)
 			E.rows[j].idx++;
 	}
 
@@ -960,8 +951,7 @@ HWND consoleWindow = GetConsoleWindow();
 
 	if(!filenameIn.empty()) {
 		// to convert from const to non const, a.k.a making a copy
-		E.filename = filenameIn;
-		if (editorOpen(myfs, E.filename.c_str()) == 1) {
+		if (editorOpen(myfs, filenameIn.c_str()) == 1) {
 			editorSetStatusMessage("File cannot exist, Press any key to exit");
 			editorRefreshScreen();
 			_getch();
