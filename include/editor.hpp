@@ -88,11 +88,10 @@ void editorDelChar();
 void editorInsertChar(int c);
 void editorRefreshScreen();
 void editorSetStatusMessage(const char* fmt, ...);
-int editorOpen(MyFs& myfs, const char* filename);
+int editorOpen(MyFs& myfs, const std::string& filename);
 std::string editorPrompt(const char* prompt);
-
-	int editorSave(MyFs & myfs);
-	char* editorRowsToString(int* buflen);
+int editorSave(MyFs & myfs);
+char* editorRowsToString(int* buflen);
 void editorInsertRow(int at, const char* s, size_t len);
 void editorStart(MyFs& myfs, const std::string& filenameIn);
 void disableRawMode();

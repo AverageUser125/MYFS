@@ -94,6 +94,10 @@ std::vector<std::string> splitCmd(const std::string& cmd) {
 	std::string current;
 
 	while (std::getline(ss, part, ' ')) {
+		if (part.empty() && !inQuotes) {
+			// Skip empty parts if not in quotes
+			continue;
+		}
 		if (!inQuotes && part.front() == '"' && part.back() == '"') {
 			// Handle strings fully enclosed in quotes
 			ans.push_back(part.substr(1, part.size() - 2));
@@ -311,6 +315,7 @@ int main(int argc, char** argv) {
 	if (argc == 1) {
 		std::cout << CYAN "Please enter the file name: " RESET;
 		std::cin >> bldevfile;
+		bldevfile = RESOURCES_PATH + bldevfile;
 		// Flush stdin to clear any leftover input
 		std::cin.clear();
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');

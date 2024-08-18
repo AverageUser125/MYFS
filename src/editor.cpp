@@ -199,7 +199,7 @@ bool editorProcessKeypress(MyFs& myfs, int c) {
 		/* Nothing to do for ESC in this mode. */
 		break;
 	default:
-		if (iscntrl(c) == 0)
+		if (c < 128 && iscntrl(c) == 0)
 			editorInsertChar(c);
 		break;
 	}
@@ -434,18 +434,20 @@ void editorRefreshScreen() {
 
 /* Load the specified program in the editor memory and returns 0 on success
  * or 1 on error. */
-int editorOpen(MyFs& myfs, const char* filename) {
-	
+int editorOpen(MyFs& myfs, const std::string& filename) {
+	if (filename.empty()) {
+		return -1;
+	}
+
 	if (!myfs.isFileExists(MyFs::splitPath(filename).first)) {
 		return 1;
 	}
-	E.filename = filename;
 
 	if (!myfs.isFileExists(filename)) {
 		return -1;
 	}
 	E.dirty = false;
-	E.filename.clear();
+	E.filename = filename;
 
 
 	std::string content;
@@ -479,7 +481,7 @@ std::string editorPrompt(const char* prompt) {
 			if (!buf.empty()) {
 				buf.pop_back();
 			}
-		} else if (c == '\x1b') { // Escape key
+		} else if (c == ESC || c == CTRL_KEY('q')) { // Escape key
 			editorSetStatusMessage("");
 			return "";			// Returning empty string to indicate cancellation
 		} else if (c == '\r' || c == '\n'|| c == CTRL_KEY('s')) { // Enter key
@@ -487,7 +489,7 @@ std::string editorPrompt(const char* prompt) {
 				editorSetStatusMessage("");
 				return buf;
 			}
-		} else if (std::iscntrl(c) == 0 && c < 128) {
+		} else if (c < 128 && std ::iscntrl(c) == 0) {
 			buf.push_back(static_cast<char>(c));
 		}
 	}
@@ -887,9 +889,24 @@ void editorDelChar() {
 	int filecol = E.coloff + E.cx;
 	erow* rows = (filerow >= E.rows.size()) ? nullptr : &E.rows[filerow];
 
-	if (rows == nullptr && filerow != 0) {
-		editorDelRow(filerow - 1);
-		E.cy--;
+	// when at the last non-existant line
+	// should just delete the previous if empty and move up one
+	// if previous not empty will just go to the end
+	if (rows == nullptr) {
+		if (filerow != 0) {
+			// Get the previous row
+			erow* prevRow = &E.rows[filerow - 1];
+			// If the previous row is empty, delete it and move up one line
+			if (prevRow->size == 0) {
+				editorDelRow(filerow - 1);
+				E.cy--;
+				E.cx = 0; // Move to the end of the new current line
+			} else {
+				// Previous row is not empty, move the cursor to the end of the previous row
+				E.cy--;
+				E.cx = prevRow->size;
+			}
+		}
 		return;
 	}
 	// special case when it's the first and only line
@@ -928,8 +945,10 @@ void editorDelChar() {
 		else
 			E.cx--;
 	}
+
 	if (rows != nullptr)
 		editorUpdateRow(rows);
+
 	E.dirty = true;
 }
 
@@ -948,18 +967,16 @@ HWND consoleWindow = GetConsoleWindow();
 		return;
 	}
 
-
-	if(!filenameIn.empty()) {
-		// to convert from const to non const, a.k.a making a copy
-		if (editorOpen(myfs, filenameIn.c_str()) == 1) {
-			editorSetStatusMessage("File cannot exist, Press any key to exit");
-			editorRefreshScreen();
-			_getch();
-			disableRawMode();
-			system("cls");
-			return;
-		}
+	// to convert from const to non const, a.k.a making a copy
+	if (editorOpen(myfs, filenameIn) == 1) {
+		editorSetStatusMessage("File cannot exist, Press any key to exit");
+		editorRefreshScreen();
+		_getch();
+		disableRawMode();
+		system("cls");
+		return;
 	}
+	
 
 	editorRefreshScreen();
 	while (true) {
