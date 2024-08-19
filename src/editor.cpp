@@ -639,15 +639,7 @@ int editorSave(MyFs& myfs) {
 		// catch error like FILE_EXISTS.
 	}
 
-	int len = 0;
-	char* buf = editorRowsToString(&len);
-	if (buf == nullptr) {
-		editorSetStatusMessage("Can't save! Memory error.");
-		return 1;
-	}
-
-	std::string content(buf, len);
-	free(buf);
+	std::string content = editorRowsToString();
 
 	try {
 		myfs.setContent(E.filename, content);
@@ -657,7 +649,7 @@ int editorSave(MyFs& myfs) {
 	}
 
 	E.dirty = false;
-	editorSetStatusMessage("%d bytes written on disk", len);
+	editorSetStatusMessage("%d bytes written on disk", content.size());
 	return 0;
 }
 #pragma endregion
@@ -870,27 +862,36 @@ void editorDelRow(int at) {
  * Returns the pointer to the heap-allocated string and populate the
  * integer pointed by 'buflen' with the size of the string, escluding
  * the final nulterm. */
-char* editorRowsToString(int* buflen) {
-	char* buf = nullptr;
-	char* p = nullptr;
-	int totlen = 0;
-	int j = 0;
+std::string editorRowsToString() {
+	try {
+		int totlen = 0;
+		// Compute the total length needed
+		for (const auto& row : E.rows) {
+			totlen += row.size + 1; // +1 for "\n"
+		}
+		// Make space for the null terminator
+		totlen++;
+		std::string result;
+		result.resize(totlen);
+		char* p = &result[0];
 
-	/* Compute count of bytes */
-	for (j = 0; j < E.rows.size(); j++)
-		totlen += E.rows[j].size + 1; /* +1 is for "\n" at end of every row */
-	*buflen = totlen;
-	totlen++; /* Also make space for nulterm */
-
-	p = buf = (char*)malloc(totlen);
-	for (j = 0; j < E.rows.size(); j++) {
-		memcpy(p, E.rows[j].chars, E.rows[j].size);
-		p += E.rows[j].size;
-		*p = '\n';
-		p++;
+		// Copy rows into the result string
+		for (const auto& row : E.rows) {
+			memcpy(p, row.chars, row.size);
+			p += row.size;
+			*p = '\n';
+			p++;
+		}
+		// Add null terminator
+		*p = '\0';
+		// Resize the result to remove the extra null terminator
+		result.resize(
+			static_cast<std::basic_string<char, std::char_traits<char>, std::allocator<char>>::size_type>(totlen) - 1);
+		return result;
+	} catch (...) {
+		// Handle any unexpected exceptions
+		return std::string();
 	}
-	*p = '\0';
-	return buf;
 }
 
 /* Insert a character at the specified position in a row, moving the remaining
