@@ -1,9 +1,5 @@
 #include "editor.hpp"
 #include <cassert>
-#include <consoleapi2.h>
-#include <EntryInfo.hpp>
-#include <minwindef.h>
-#include <winnt.h>
 #include <conio.h>
 
 static struct editorConfig E;
@@ -447,6 +443,7 @@ void editorRefreshScreen() {
 	if (!myfs.isFileExists(MyFs::splitPath(filename).first)) {
 		return 1;
 	}
+	E.filename = filename;
 	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(filename);
 	if (!entryOpt) { 
 		// do it this way an not isFileExists to get the file entry and therefore the file size
@@ -454,7 +451,6 @@ void editorRefreshScreen() {
 	}
 	EntryInfo entry = *entryOpt;
 	E.dirty = false;
-	E.filename = filename;
 
 	std::string content = myfs.getContent(entry);
 	std::string line;
@@ -763,32 +759,25 @@ void editorDelRow(int at) {
  * the final nulterm. */
 std::string editorRowsToString() {
 	try {
-		int totlen = 0;
-		// Compute the total length needed
-		for (const auto& row : E.rows) {
-			totlen += row.size + 1; // +1 for "\n"
-		}
-		// Make space for the null terminator
-		totlen++;
+		// Calculate the total length needed including newline characters
+		size_t totlen = 0;
+		// Create a string with the required length
 		std::string result;
-		result.resize(totlen);
-		char* p = &result[0];
-		// Copy rows into the result string
+		// Append rows to the result string
 		for (const auto& row : E.rows) {
-			memcpy(p, row.chars, row.size);
-			p += row.size;
-			*p = '\n';
-			p++;
+			result.append(row.chars, row.size);
+			result.push_back('\n'); // Add newline character
 		}
-		// Add null terminator
-		*p = '\0';
-		// Resize the result to remove the extra null terminator
-		result.resize(
-			static_cast<std::basic_string<char, std::char_traits<char>, std::allocator<char>>::size_type>(totlen) - 1);
+
+		// Remove the trailing newline if needed
+		if (!result.empty() && result.back() == '\n') {
+			result.pop_back();
+		}
+
 		return result;
 	} catch (...) {
 		// Handle any unexpected exceptions
-		return std::string();
+		return std::string("");
 	}
 }
 
