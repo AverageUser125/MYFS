@@ -56,6 +56,12 @@ class MyFs {
 		uint8_t version;
 		uint16_t blockSize;
 		size_t totalFatSize;
+
+		// Constructor to initialize the struct
+		myfs_header(uint16_t blockSizeValue)
+			: magic{MYFS_MAGIC[0], MYFS_MAGIC[1], MYFS_MAGIC[2], MYFS_MAGIC[3]}, version(CURR_VERSION),
+			  blockSize(blockSizeValue), totalFatSize(FAT_SIZE) {
+		}
 	};
 
 	std::set<EntryInfo> entries;

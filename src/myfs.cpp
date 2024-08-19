@@ -12,7 +12,6 @@ MyFs::MyFs(BlockDeviceSimulator* blkdevsim_)
 		load();
 		allocator.initialize(entries, BLOCK_SIZE);
 		allocator.defrag(entries, blkdevsim);
-		// allocator.defrag(entries, blkdevsim);
 	} catch (const std::exception& e) {
 		format();
 	}
@@ -47,20 +46,16 @@ void MyFs::save() {
 	}
 
 	// Write the header and entries to the block device
-	myfs_header header{};
-	std::memcpy(header.magic.data(), MYFS_MAGIC, header.magic.size());
-	strncpy(header.magic.data(), MYFS_MAGIC, header.magic.size());
-	header.version = CURR_VERSION;
-	header.blockSize = BLOCK_SIZE;
+	myfs_header header(BLOCK_SIZE);
+
 	blkdevsim->write(0, sizeof(header), reinterpret_cast<const char*>(&header));
 	blkdevsim->write(sizeof(header), sizeof(totalFatSize), reinterpret_cast<const char*>(&totalFatSize));
-
 	blkdevsim->write(sizeof(header) + sizeof(totalFatSize), buffer.size(), buffer.data());
 }
 
 void MyFs::load() {
 	// Read the header
-	myfs_header header{};
+	myfs_header header(BLOCK_SIZE);
 	blkdevsim->read(0, sizeof(header), reinterpret_cast<char*>(&header));
 
 	// Check for magic number and version
@@ -108,10 +103,7 @@ void MyFs::load() {
 }
 
 void MyFs::format() {
-	myfs_header header{};
-	strncpy(header.magic.data(), MYFS_MAGIC, header.magic.size());
-	header.version = CURR_VERSION;
-	header.blockSize = DEFAULT_BLOCK_SIZE;
+	myfs_header header(DEFAULT_BLOCK_SIZE);
 	totalFatSize = 0;
 	blkdevsim->write(0, sizeof(header), reinterpret_cast<const char*>(&header));
 	blkdevsim->write(sizeof(header), sizeof(totalFatSize), reinterpret_cast<const char*>(&totalFatSize));
