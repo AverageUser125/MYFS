@@ -134,17 +134,12 @@ CommandType getCommandType(const std::string& cmd) {
 	return (it != commandMap.end()) ? it->second : CommandType::UNKNOWN;
 }
 
-void editFile(MyFs& myfs, const std::string& fileLocation) {
-
-	if (fileLocation.empty()) {
-		editorStart(myfs, "");
-	}
-
+void editFile(MyFs& myfs, const std::string& fileLocation) {	
 	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(fileLocation);
 	if (entryOpt) {
 		EntryInfo entry = *entryOpt;
 		if (entry.type != FILE_TYPE) {
-			throw std::runtime_error("Can only edit files");
+			// throw std::runtime_error("Can only edit files");
 		}
 	}
 
@@ -226,7 +221,7 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 		}
 		EntryInfo entry = *entryOpt;
 		if (entry.type != FILE_TYPE) {
-			throw std::runtime_error("Can only get content of files");
+			// throw std::runtime_error("Can only get content of files");
 		}
 		std::string content = myfs.getContent(entry);
 		if (!content.empty() && content.back() != '\n') {

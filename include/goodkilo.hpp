@@ -103,14 +103,11 @@ void editorFreeRow(erow* row);
 void editorDelRow(int at);
 void editorInsertRow(int at, const char* s, int len);
 void editorUpdateRow(erow* row);
-int editorRowCxToRx(erow* row, int cx);
-int editorRowRxToCx(erow* row, int rx);
 void editorRowInsertChar(erow* row, int at, int c);
 void editorRowDelChar(erow* row, int at);
 void editorOpen(const std::string& filename, MyFs& myfs);
 char* editorRowsToString(int* buflen);
 int editorSave(MyFs& myfs);
-void editorFindCallback(char* query, int key);
 void editorFind();
 std::string editorPrompt(const char* prompt);
 void editorMoveCursor(int key);
@@ -119,18 +116,15 @@ bool editorProcessKeypress(MyFs& myfs);
 int interpretExtendedKeys();
 inline void snapCursorToEndOfLine(erow* row);
 void editorSetStatusMessage(const char* fmt, ...);
-void editorScroll();
 void editorRefreshScreen();
-void editorDrawRows();
 void editorWelcomeDraw(abuf* ab);
-void editorDrawStatusBar(abuf* ab);
-void editorDrawMessageBar(abuf* ab);
 void editorInsertChar(int c);
 void editorDelChar();
 void editorInsertNewline();
 void initEditor();
 void editorStart(MyFs& myfs, const std::string& filenameIn);
 void fixCursor();
+void editorAtExit();
 
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
 

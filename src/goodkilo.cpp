@@ -1,5 +1,7 @@
 #include "goodkilo.hpp"
+#include "EntryInfo.hpp"
 #include "myfs.hpp"
+#include <set>
 #include <stdexcept>
 /* C / C++ */
 
@@ -483,25 +485,24 @@ void editorDelChar() {
 	if (filename.empty()) {
 		return -1;
 	}
-
 	if (!myfs.isFileExists(MyFs::splitPath(filename).first)) {
 		return 1;
 	}
-
-	if (!myfs.isFileExists(filename)) {
+	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(filename);
+	if (!entryOpt) { 
+		// do it this way an not isFileExists to get the file entry and therefore the file size
 		return -1;
 	}
+	EntryInfo entry = *entryOpt;
 	E.dirty = false;
 	E.filename = filename;
 
-
-	std::string content;
-	content = myfs.getContent(filename);
+	std::string content = myfs.getContent(entry);
 
 	std::string line;
 	size_t start = 0;
 	size_t end = content.find('\n');
-	while (end != std::string::npos) {
+	while (end != std::string::npos && end < entry.size) {
 		line = content.substr(start, end - start);
 		if (!line.empty() && (line.back() == '\r')) {
 			line.pop_back();
@@ -510,6 +511,14 @@ void editorDelChar() {
 		start = end + 1;
 		end = content.find('\n', start);
 	}
+    // Handle the last line which may not end with a newline
+    if (start < entry.size) {
+        std::string line = content.substr(start, entry.size - start);
+        if (!line.empty() && (line.back() == '\r')) {
+            line.pop_back();
+        }
+        editorInsertRow(E.rows.size(), line.c_str(), line.length());
+    }
 
 	E.dirty = false;
 	return 0;
@@ -600,21 +609,11 @@ int editorSave(MyFs& myfs) {
  * output in a single call, to avoid flickering effects. */
 
 
-void abAppend(struct abuf* ab, const char* s, int len) {
-	char* newLine = static_cast<char*>(realloc(ab->b, ab->len + len));
-
-	if (newLine == nullptr)
-		return;
-	memcpy(newLine + ab->len, s, len);
-	ab->b = newLine;
-	ab->len += len;
+static void abAppend(std::vector<char>& ab, const char* s, int len) {
+	ab.insert(ab.end(), s, s + len);
 }
 
-inline void abFree(struct abuf* ab) {
-	free(ab->b);
-}
-
-void welcomeMessage(struct abuf* ab) {
+void welcomeMessage(std::vector<char> ab) {
 	std::array<char, MAX_STATUS_LENGTH> welcome{};
 	int welcomelen = snprintf(welcome.data(), welcome.size(), WELCOME_MESSAGE);
 	int padding = (E.screencols - welcomelen) / 2;
@@ -633,18 +632,18 @@ void editorRefreshScreen() {
 	int y = 0;
 	erow* r = nullptr;
 	std::array<char, 32> buf{};
-	struct abuf ab = ABUF_INIT;
+	std::vector<char> ab{};
 
-	abAppend(&ab, "\x1b[?25l", 6); /* Hide cursor. */
-	abAppend(&ab, "\x1b[H", 3);	   /* Go home. */
+	abAppend(ab, "\x1b[?25l", 6); /* Hide cursor. */
+	abAppend(ab, "\x1b[H", 3);	   /* Go home. */
 	for (y = 0; y < E.screenrows; y++) {
 		int filerow = E.rowoff + y;
 
 		if (filerow >= E.rows.size()) {
 			if (E.rows.empty() && y == E.screenrows / 3) {
-				welcomeMessage(&ab);
+				welcomeMessage(ab);
 			} else {
-				abAppend(&ab, "~\x1b[0K\r\n", 7);
+				abAppend(ab, "~\x1b[0K\r\n", 7);
 			}
 			continue;
 		}
@@ -665,20 +664,20 @@ void editorRefreshScreen() {
 						sym = '@' + c[j];
 					else
 						sym = '?';
-					abAppend(&ab, &sym, 1);
+					abAppend(ab, &sym, 1);
 				} else {
-					abAppend(&ab, c + j, 1);
+					abAppend(ab, c + j, 1);
 				}
 			}
 		}
-		abAppend(&ab, "\x1b[39m", 5);
-		abAppend(&ab, "\x1b[0K", 4);
-		abAppend(&ab, "\r\n", 2);
+		abAppend(ab, "\x1b[39m", 5);
+		abAppend(ab, "\x1b[0K", 4);
+		abAppend(ab, "\r\n", 2);
 	}
 
 	/* Create a two rows status. First row: */
-	abAppend(&ab, "\x1b[0K", 4);
-	abAppend(&ab, "\x1b[7m", 4);
+	abAppend(ab, "\x1b[0K", 4);
+	abAppend(ab, "\x1b[7m", 4);
 	std::array<char, MAX_STATUS_LENGTH> status{};
 	std::array<char, MAX_STATUS_LENGTH> rstatus{};
 	int len = snprintf(status.data(), status.size(), "%.20s - %zu lines %s",
@@ -686,22 +685,22 @@ void editorRefreshScreen() {
 	int rlen = snprintf(rstatus.data(), rstatus.size(), "%d/%zu", E.rowoff + E.cy + 1, E.rows.size());
 	if (len > E.screencols)
 		len = E.screencols;
-	abAppend(&ab, status.data(), len);
+	abAppend(ab, status.data(), len);
 	while (len < E.screencols) {
 		if (E.screencols - len == rlen) {
-			abAppend(&ab, rstatus.data(), rlen);
+			abAppend(ab, rstatus.data(), rlen);
 			break;
 		}
-		abAppend(&ab, " ", 1);
+		abAppend(ab, " ", 1);
 		len++;
 	}
-	abAppend(&ab, "\x1b[0m\r\n", 6);
+	abAppend(ab, "\x1b[0m\r\n", 6);
 
 	/* Second row depends on E.statusmsg and the status message update time. */
-	abAppend(&ab, "\x1b[0K", 4);
+	abAppend(ab, "\x1b[0K", 4);
 	int msglen = strlen(E.statusmsg.data());
 	if ((msglen != 0) && time(nullptr) - E.statusmsg_time < 5)
-		abAppend(&ab, E.statusmsg.data(), msglen <= E.screencols ? msglen : E.screencols);
+		abAppend(ab, E.statusmsg.data(), msglen <= E.screencols ? msglen : E.screencols);
 
 	/* Put cursor at its current position. Note that the horizontal position
      * at which the cursor is displayed may be different compared to 'E.cx'
@@ -718,10 +717,11 @@ void editorRefreshScreen() {
 		}
 	}
 	snprintf(buf.data(), sizeof(buf), "\x1b[%d;%dH", E.cy + 1, cx);
-	abAppend(&ab, buf.data(), strlen(buf.data()));
-	abAppend(&ab, "\x1b[?25h", 6); /* Show cursor. */
-	write(STDOUT_FILENO, ab.b, ab.len);
-	abFree(&ab);
+	abAppend(ab, buf.data(), strlen(buf.data()));
+	abAppend(ab, "\x1b[?25h", 6); /* Show cursor. */
+	write(STDOUT_FILENO, ab.data(), ab.size());
+
+	// the vector is automatically cleared
 }
 
 /* Set an editor status message for the second line of the status, at the
@@ -969,9 +969,9 @@ bool editorProcessKeypress(MyFs& myfs) {
 								   "Press Ctrl-Q %d more times to quit.",
 								   quit_times);
 			quit_times--;
-			return false;
+			return true;
 		}
-		return true;
+		return false;
 		break;
 	case CTRL_KEY('s'): /* Ctrl-s */
 		editorSave(myfs);
@@ -1016,7 +1016,7 @@ bool editorProcessKeypress(MyFs& myfs) {
 
 	quit_times = KILO_QUIT_TIMES; /* Reset it to the original value. */
 
-	return false;
+	return true;
 }
 
 void updateWindowSize() {
@@ -1060,17 +1060,13 @@ void editorStart(MyFs& myfs, const std::string& filenameIn) {
 		system("cls");
 		return;
 	}
-	// both of these handle the case of filename==NULL
 
 	editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
-	try {
-		bool quit = false;
-		while (quit) {
-			editorRefreshScreen();
-			quit = editorProcessKeypress(myfs);
-		}
-	} catch (std::runtime_error& e) {
-		editorAtExit();
-		throw std::runtime_error(e);
+	
+	bool toContinue = true;
+	while (toContinue) {
+		editorRefreshScreen();
+		toContinue = editorProcessKeypress(myfs);
 	}
+	editorAtExit();
 }
