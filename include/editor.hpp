@@ -96,3 +96,4 @@ void editorInsertRow(int at, const char* s, size_t len);
 void editorStart(MyFs& myfs, const std::string& filenameIn);
 void disableRawMode();
 int enableRawMode();
+void fixCursor();

@@ -57,6 +57,114 @@ void disableRawMode() {
 
 #pragma endregion
 
+#pragma region findMode
+
+void editorFind() {
+	std::array<char, 80 + 1> query = {0};
+	int qlen = 0;
+	int last_match = -1;	/* Last line where a match was found. -1 for none. */
+	int find_next = 0;		/* if 1 search next, if -1 search prev. */
+	int saved_hl_line = -1; /* No saved HL */
+	char* saved_hl = nullptr;
+
+#define FIND_RESTORE_HL                                                                                                \
+	do {                                                                                                               \
+		if (saved_hl) {                                                                                                \
+			memcpy(E.rows[saved_hl_line].hl, saved_hl, E.rows[saved_hl_line].rsize);                                     \
+			free(saved_hl);                                                                                            \
+			saved_hl = NULL;                                                                                           \
+		}                                                                                                              \
+	} while (0)
+
+	/* Save the cursor position in order to restore it later. */
+	int saved_cx = E.cx;
+	int saved_cy = E.cy;
+	int saved_coloff = E.coloff;
+	int saved_rowoff = E.rowoff;
+
+	while (true) {
+		editorSetStatusMessage("Search: %s (Use ESC/Arrows/Enter)", query.data());
+		editorRefreshScreen();
+
+		int c = readKey();
+		if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
+			if (qlen != 0)
+				query[--qlen] = '\0';
+			last_match = -1;
+		} else if (c == ESC || c == ENTER) {
+			if (c == ESC) {
+				E.cx = saved_cx;
+				E.cy = saved_cy;
+				E.coloff = saved_coloff;
+				E.rowoff = saved_rowoff;
+			}
+			FIND_RESTORE_HL;
+			editorSetStatusMessage("");
+			return;
+		} else if (c == ARROW_RIGHT || c == ARROW_DOWN) {
+			find_next = 1;
+		} else if (c == ARROW_LEFT || c == ARROW_UP) {
+			find_next = -1;
+		} else if (isprint(c) != 0) {
+			if (qlen < query.size()) {
+				query[qlen++] = c;
+				query[qlen] = '\0';
+				last_match = -1;
+			}
+		}
+
+		/* Search occurrence. */
+		if (last_match == -1)
+			find_next = 1;
+		if (find_next != 0) {
+			char* match = nullptr;
+			int match_offset = 0;
+			int i = 0;
+			int current = last_match;
+
+			for (i = 0; i < E.rows.size(); i++) {
+				current += find_next;
+				if (current == -1)
+					current = E.rows.size() - 1;
+				else if (current == E.rows.size())
+					current = 0;
+				match = strstr(E.rows[current].render, query.data());
+				if (match != nullptr) {
+					match_offset = match - E.rows[current].render;
+					break;
+				}
+			}
+			find_next = 0;
+
+			/* Highlight */
+			FIND_RESTORE_HL;
+
+			if (match != nullptr) {
+				erow* row = &E.rows[current];
+				last_match = current;
+				if (row->hl != nullptr) {
+					saved_hl_line = current;
+					saved_hl = (char*)malloc(row->rsize);
+					memcpy(saved_hl, row->hl, row->rsize);
+					memset(row->hl + match_offset, HL_MATCH, qlen);
+				}
+				E.cy = 0;
+				E.cx = match_offset;
+				E.rowoff = current;
+				E.coloff = 0;
+				/* Scroll horizontally as needed. */
+				if (E.cx > E.screencols) {
+					int diff = E.cx - E.screencols;
+					E.cx -= diff;
+					E.coloff += diff;
+				}
+			}
+		}
+	}
+}
+
+#pragma endregion
+
 #pragma region keyPresses
 
 int readKey() {
@@ -125,7 +233,7 @@ int readKey() {
 				case VK_BACK:
 					return BACKSPACE;
 				default:
-					if (keyEvent.uChar.AsciiChar == 0) {
+					if (keyEvent.uChar.AsciiChar == 0 || keyEvent.uChar.AsciiChar == -1) {
 						continue; // Skip if no character code
 					}
 					if (ctrlPressed) {
@@ -167,7 +275,7 @@ bool editorProcessKeypress(MyFs& myfs, int c) {
 		editorSave(myfs);
 		break;
 	case CTRL_KEY('f'):
-		// editorFind();
+		editorFind();
 		break;
 	case BACKSPACE:		/* Backspace */
 	case CTRL_KEY('h'): /* Ctrl-h */
@@ -210,7 +318,6 @@ bool editorProcessKeypress(MyFs& myfs, int c) {
 }
 
 #pragma endregion
-
 
 #pragma region bufferStuff
 
@@ -434,29 +541,27 @@ void editorRefreshScreen() {
 
 /* Load the specified program in the editor memory and returns 0 on success
  * or 1 on error. */
-int editorOpen(MyFs& myfs, const std::string& filename) {
+ int editorOpen(MyFs& myfs, const std::string& filename) {
 	if (filename.empty()) {
 		return -1;
 	}
-
 	if (!myfs.isFileExists(MyFs::splitPath(filename).first)) {
 		return 1;
 	}
-
-	if (!myfs.isFileExists(filename)) {
+	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(filename);
+	if (!entryOpt) { 
+		// do it this way an not isFileExists to get the file entry and therefore the file size
 		return -1;
 	}
+	EntryInfo entry = *entryOpt;
 	E.dirty = false;
 	E.filename = filename;
 
-
-	std::string content;
-	content = myfs.getContent(filename);
-
+	std::string content = myfs.getContent(entry);
 	std::string line;
 	size_t start = 0;
 	size_t end = content.find('\n');
-	while (end != std::string::npos) {
+	while (end != std::string::npos && end < entry.size) {
 		line = content.substr(start, end - start);
 		if (!line.empty() && (line.back() == '\r')) {
 			line.pop_back();
@@ -465,6 +570,14 @@ int editorOpen(MyFs& myfs, const std::string& filename) {
 		start = end + 1;
 		end = content.find('\n', start);
 	}
+    // Handle the last line which may not end with a newline
+    if (start < entry.size) {
+        std::string line = content.substr(start, entry.size - start);
+        if (!line.empty() && (line.back() == '\r')) {
+            line.pop_back();
+        }
+        editorInsertRow(E.rows.size(), line.c_str(), line.length());
+    }
 
 	E.dirty = false;
 	return 0;
@@ -672,8 +785,8 @@ void editorUpdateRow(erow* rows) {
 		if (rows->chars[j] == TAB)
 			tabs++;
 
-	unsigned long long allocsize = (unsigned long long)rows->size + static_cast<unsigned long long>(tabs) * 8 +
-								   static_cast<unsigned long long>(nonprint) * 9 + 1;
+	size_t allocsize =
+		static_cast<size_t>(rows->size) + static_cast<size_t>(tabs) * 8 + static_cast<size_t>(nonprint) * 9 + 1;
 	if (allocsize > UINT32_MAX) {
 		throw std::runtime_error("Some line of the edited file is too long for kilo\n");
 	}
@@ -847,6 +960,16 @@ void editorInsertChar(int c) {
 
 /* Inserting a newline is slightly complex as we have to handle inserting a
  * newline in the middle of a line, splitting the line as needed. */
+inline void fixCursor() {
+	if (E.cy == E.screenrows - 3 || E.cy == E.screenrows) {
+		E.rowoff++;
+	} else {
+		E.cy++;
+	}
+	E.cx = 0;
+	E.coloff = 0;
+}
+
 void editorInsertNewline() {
 	int filerow = E.rowoff + E.cy;
 	int filecol = E.coloff + E.cx;
@@ -855,32 +978,28 @@ void editorInsertNewline() {
 	if (rows == nullptr) {
 		if (filerow == E.rows.size()) {
 			editorInsertRow(filerow, "", 0);
-			goto fixcursor;
+			fixCursor();
 		}
 		return;
 	}
-	/* If the cursor is over the current line size, we want to conceptually
-     * think it's just over the last character. */
-	if (filecol >= rows->size)
+
+	// If the cursor is over the current line size, adjust it
+	if (filecol >= rows->size) {
 		filecol = rows->size;
+	}
+
 	if (filecol == 0) {
 		editorInsertRow(filerow, "", 0);
 	} else {
-		/* We are in the middle of a line. Split it between two rows. */
+		// Split the line between two rows
 		editorInsertRow(filerow + 1, rows->chars + filecol, rows->size - filecol);
 		rows = &E.rows[filerow];
 		rows->chars[filecol] = '\0';
 		rows->size = filecol;
 		editorUpdateRow(rows);
 	}
-fixcursor:
-	if (E.cy == E.screenrows - 3 || E.cy == E.screenrows) {
-		E.rowoff++;
-	} else {
-		E.cy++;
-	}
-	E.cx = 0;
-	E.coloff = 0;
+
+	fixCursor();
 }
 
 /* Delete the char at the current prompt position. */
@@ -957,7 +1076,7 @@ void editorDelChar() {
 #pragma region mainStuff
 
 void editorStart(MyFs& myfs, const std::string& filenameIn){
-HWND consoleWindow = GetConsoleWindow();
+	HWND consoleWindow = GetConsoleWindow();
 	MSG msg{};
 
 	system("cls");
@@ -987,8 +1106,8 @@ HWND consoleWindow = GetConsoleWindow();
 		}
 		editorRefreshScreen();
 	}
-	system("cls");
 	disableRawMode();
+	system("cls");
 }
 
 void initEditor() {
@@ -1004,5 +1123,15 @@ void initEditor() {
 	E.syntax = nullptr;
 	E.rawmode = false;
 	updateWindowSize();
+}
+
+/* Called at exit to avoid remaining in raw mode. */
+void editorAtExit() {
+	E.filename.clear();
+	for (erow &row : E.rows) {
+		editorFreeRow(&row);
+	}
+	E.rows.clear();
+	disableRawMode();
 }
 #pragma endregion
