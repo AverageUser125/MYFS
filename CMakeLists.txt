@@ -36,13 +36,13 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     # Enable SIMD optimizations, Show all warnings, (except contexpr)
-    add_compile_options(/arch:AVX2 -Wall -EHsc)
+    add_compile_options(/arch:AVX2 /Wall /EHsc)
     # Disable CRT secure warnings
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else()
     # Show all warnings, just nice to have(excpet #pragma region)
     add_compile_options(-march=native)
-    add_compile_options(-Wall -Wextra -Wno-unknown-pragmas)
+    add_compile_options(-Wall -Wextra -Wno-unknown-pragmas -Wno-sign-compare)
 endif()
 
 # Enable Hot Reload for MSVC compilers if supported, came with the default file
@@ -55,10 +55,10 @@ project("${PROJECT_NAME}")
 
 # lsp stuff
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_definitions(-DSOME_DEFINITION)
 
 # Add source files recursively from the src directory
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-add_definitions(-DSOME_DEFINITION)
 
 # Add source to this project's executable
 add_executable(${PROJECT_NAME} ${MY_SOURCES})

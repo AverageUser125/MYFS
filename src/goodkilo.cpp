@@ -24,14 +24,14 @@ void disableRawMode() {
 
 /* Called at exit to avoid remaining in raw mode. */
 void editorAtExit() {
-	free(E.filename);
-	for (int at = 0; at < E.numrows; at++) {
-		editorFreeRow(&E.row[at]);
+	E.filename.clear();
+	for (erow &row : E.rows) {
+		editorFreeRow(&row);
 	}
-	free(E.row);
+	E.rows.clear();
 	write(STDOUT_FILENO, "\x1b[H", 3);	// move cursor to the top left
 	write(STDOUT_FILENO, "\x1b[2J", 4); // Clear screen
-	signal(SIGWINCH, (__sighandler_t) nullptr);
+	(void)signal(SIGWINCH, (__sighandler_t) nullptr);
 	disableRawMode();
 }
 
@@ -149,23 +149,34 @@ int readKey() {
  * and return it. On error -1 is returned, on success the position of the
  * cursor is stored at *rows and *cols and 0 is returned. */
 int getCursorPosition(int* rows, int* cols) {
-	std::array<char, 32> buf{};
-	unsigned int i = 0;
-	if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
-		return -1;
-	while (i < sizeof(buf) - 1) {
-		if (read(STDIN_FILENO, &buf[i], 1) != 1)
-			break;
-		if (buf[i] == 'R')
-			break;
-		i++;
-	}
-	buf[i] = '\0';
-	if (buf[0] != '\x1b' || buf[1] != '[')
-		return -1;
-	if (sscanf(&buf[2], "%d;%d", rows, cols) != 2)
-		return -1;
-	return 0;
+    std::array<char, MAX_KEYPRESS_LENGTH> buf{};
+    int i = 0;
+
+    if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
+        return -1;
+
+    while (i < static_cast<int>(buf.size()) - 1) {
+        if (read(STDIN_FILENO, &buf[i], 1) != 1)
+            return -1;
+        if (buf[i] == 'R')
+            break;
+        i++;
+    }
+
+    buf[i] = '\0';
+
+    if (buf[0] != '\x1b' || buf[1] != '[')
+        return -1;
+
+    char* end = nullptr;
+    *rows = std::strtol(&buf[2], &end, NUMBER_BASE);
+    if (*end != ';')
+        return -1;
+    *cols = std::strtol(end + 1, &end, NUMBER_BASE);
+    if (*end != 'R')
+        return -1;
+
+    return 0;
 }
 
 /* Try to get the number of columns in the current terminal. If the ioctl()
@@ -207,7 +218,7 @@ void editorUpdateRow(erow* row) {
 		throw std::runtime_error("Some line of the edited file is too long for kilo\n");
 	}
 
-	row->render = (char*)malloc(row->size + tabs * 8 + nonprint * 9 + 1);
+	row->render = static_cast<char*>(malloc(row->size + tabs * 8 + nonprint * 9 + 1));
 	idx = 0;
 	for (j = 0; j < row->size; j++) {
 		if (row->chars[j] == TAB) {
@@ -222,33 +233,39 @@ void editorUpdateRow(erow* row) {
 	row->render[idx] = '\0';
 
 	/* Update the syntax highlighting attributes of the row. */
-	row->hl = (unsigned char*)realloc(row->hl, row->rsize);
+	row->hl = static_cast<unsigned char*>(realloc(row->hl, row->rsize));
 	memset(row->hl, HL_NORMAL, row->rsize);
 }
 
 /* Insert a row at the specified position, shifting the other rows on the bottom
  * if required. */
-void editorInsertRow(int at, const char* s, size_t len) {
-	if (at > E.numrows)
+void editorInsertRow(int at, const char* s, int len) {
+	if (at > E.rows.size())
 		return;
-	E.row = (erow*)realloc(E.row, sizeof(erow) * (E.numrows + 1));
-	if (at != E.numrows) {
-		memmove(E.row + at + 1, E.row + at, sizeof(E.row[0]) * (E.numrows - at));
-		for (int j = at + 1; j <= E.numrows; j++)
-			E.row[j].idx++;
+	// Increase the size of the vector by adding a new row.
+	E.rows.push_back(erow{});
+
+	// Move the rows starting from the position `at` one place to the right.
+	if (at != E.rows.size() - 1) {
+		std::move(E.rows.begin() + at, E.rows.end() - 1, E.rows.begin() + at + 1);
+		for (int j = at + 1; j < E.rows.size(); j++)
+			E.rows[j].idx++;
 	}
-	E.row[at].size = len;
-	E.row[at].chars = (char*)malloc(len + 1);
-	memcpy(E.row[at].chars, s, len + 1);
-	E.row[at].hl = nullptr;
-	E.row[at].hl_oc = 0;
-	E.row[at].render = nullptr;
-	E.row[at].rsize = 0;
-	E.row[at].idx = at;
-	editorUpdateRow(E.row + at);
-	E.numrows++;
+	// Initialize the new row.
+	E.rows[at].size = len;
+	E.rows[at].chars = static_cast<char*>(malloc(len + 1));
+	memcpy(E.rows[at].chars, s, len + 1);
+	E.rows[at].hl = nullptr;
+	E.rows[at].hl_oc = 0;
+	E.rows[at].render = nullptr;
+	E.rows[at].rsize = 0;
+	E.rows[at].idx = at;
+
+	// Update the row and set the dirty flag.
+	editorUpdateRow(&E.rows[at]);
 	E.dirty = true;
 }
+
 
 /* Free row's heap allocated stuff. */
 void editorFreeRow(erow* row) {
@@ -260,16 +277,18 @@ void editorFreeRow(erow* row) {
 /* Remove the row at the specified position, shifting the remainign on the
  * top. */
 void editorDelRow(int at) {
-	erow* row = nullptr;
-
-	if (at >= E.numrows)
+	if (at >= E.rows.size())
 		return;
-	row = E.row + at;
-	editorFreeRow(row);
-	memmove(E.row + at, E.row + at + 1, sizeof(E.row[0]) * (E.numrows - at - 1));
-	for (int j = at; j < E.numrows - 1; j++)
-		E.row[j].idx++;
-	E.numrows--;
+
+	// Free the memory for the row at the specified index.
+	editorFreeRow(&E.rows[at]);
+
+	// Remove the row at the specified index.
+	E.rows.erase(E.rows.begin() + at);
+	// Update indices for rows that follow.
+	for (int j = at; j < E.rows.size(); j++)
+		E.rows[j].idx--;
+	// Mark the editor as dirty.
 	E.dirty = true;
 }
 
@@ -284,15 +303,15 @@ char* editorRowsToString(int* buflen) {
 	int j = 0;
 
 	/* Compute count of bytes */
-	for (j = 0; j < E.numrows; j++)
-		totlen += E.row[j].size + 1; /* +1 is for "\n" at end of every row */
+	for (j = 0; j < E.rows.size(); j++)
+		totlen += E.rows[j].size + 1; /* +1 is for "\n" at end of every row */
 	*buflen = totlen;
 	totlen++; /* Also make space for nulterm */
 
-	p = buf = (char*)malloc(totlen);
-	for (j = 0; j < E.numrows; j++) {
-		memcpy(p, E.row[j].chars, E.row[j].size);
-		p += E.row[j].size;
+	p = buf = static_cast<char*>(malloc(totlen));
+	for (j = 0; j < E.rows.size(); j++) {
+		memcpy(p, E.rows[j].chars, E.rows[j].size);
+		p += E.rows[j].size;
 		*p = '\n';
 		p++;
 	}
@@ -308,14 +327,14 @@ void editorRowInsertChar(erow* row, int at, int c) {
          * current length by more than a single character. */
 		int padlen = at - row->size;
 		/* In the next line +2 means: new char and null term. */
-		row->chars = (char*)realloc(row->chars, row->size + padlen + 2);
+		row->chars = static_cast<char*>(realloc(row->chars, row->size + padlen + 2));
 		memset(row->chars + row->size, ' ', padlen);
 		row->chars[row->size + padlen + 1] = '\0';
 		row->size += padlen + 1;
 	} else {
 		/* If we are in the middle of the string just make space for 1 new
          * char plus the (already existing) null term. */
-		row->chars = (char*)realloc(row->chars, row->size + 2);
+		row->chars = static_cast<char*>(realloc(row->chars, row->size + 2));
 		memmove(row->chars + at + 1, row->chars + at, row->size - at + 1);
 		row->size++;
 	}
@@ -325,8 +344,8 @@ void editorRowInsertChar(erow* row, int at, int c) {
 }
 
 /* Append the string 's' at the end of a row */
-void editorRowAppendString(erow* row, char* s, size_t len) {
-	row->chars = (char*)realloc(row->chars, row->size + len + 1);
+void editorRowAppendString(erow* row, char* s, int len) {
+	row->chars = static_cast<char*>(realloc(row->chars, row->size + len + 1));
 	memcpy(row->chars + row->size, s, len);
 	row->size += len;
 	row->chars[row->size] = '\0';
@@ -348,15 +367,15 @@ void editorRowDelChar(erow* row, int at) {
 void editorInsertChar(int c) {
 	int filerow = E.rowoff + E.cy;
 	int filecol = E.coloff + E.cx;
-	erow* row = (filerow >= E.numrows) ? nullptr : &E.row[filerow];
+	erow* row = (filerow >= E.rows.size()) ? nullptr : &E.rows[filerow];
 
 	/* If the row where the cursor is currently located does not exist in our
      * logical representaion of the file, add enough empty rows as needed. */
 	if (row == nullptr) {
-		while (E.numrows <= filerow)
-			editorInsertRow(E.numrows, "", 0);
+		while (E.rows.size() <= filerow)
+			editorInsertRow(E.rows.size(), "", 0);
 	}
-	row = &E.row[filerow];
+	row = &E.rows[filerow];
 	editorRowInsertChar(row, filecol, c);
 	if (E.cx == E.screencols - 1)
 		E.coloff++;
@@ -367,34 +386,8 @@ void editorInsertChar(int c) {
 
 /* Inserting a newline is slightly complex as we have to handle inserting a
  * newline in the middle of a line, splitting the line as needed. */
-void editorInsertNewline() {
-	int filerow = E.rowoff + E.cy;
-	int filecol = E.coloff + E.cx;
-	erow* row = (filerow >= E.numrows) ? nullptr : &E.row[filerow];
-
-	if (row == nullptr) {
-		if (filerow == E.numrows) {
-			editorInsertRow(filerow, "", 0);
-			goto fixcursor;
-		}
-		return;
-	}
-	/* If the cursor is over the current line size, we want to conceptually
-     * think it's just over the last character. */
-	if (filecol >= row->size)
-		filecol = row->size;
-	if (filecol == 0) {
-		editorInsertRow(filerow, "", 0);
-	} else {
-		/* We are in the middle of a line. Split it between two rows. */
-		editorInsertRow(filerow + 1, row->chars + filecol, row->size - filecol);
-		row = &E.row[filerow];
-		row->chars[filecol] = '\0';
-		row->size = filecol;
-		editorUpdateRow(row);
-	}
-fixcursor:
-	if (E.cy == E.screenrows - 1) {
+inline void fixCursor() {
+	if (E.cy == E.screenrows - 3 || E.cy == E.screenrows) {
 		E.rowoff++;
 	} else {
 		E.cy++;
@@ -403,17 +396,49 @@ fixcursor:
 	E.coloff = 0;
 }
 
+void editorInsertNewline() {
+	int filerow = E.rowoff + E.cy;
+	int filecol = E.coloff + E.cx;
+	erow* rows = (filerow >= E.rows.size()) ? nullptr : &E.rows[filerow];
+
+	if (rows == nullptr) {
+		if (filerow == E.rows.size()) {
+			editorInsertRow(filerow, "", 0);
+			fixCursor();
+		}
+		return;
+	}
+
+	// If the cursor is over the current line size, adjust it
+	if (filecol >= rows->size) {
+		filecol = rows->size;
+	}
+
+	if (filecol == 0) {
+		editorInsertRow(filerow, "", 0);
+	} else {
+		// Split the line between two rows
+		editorInsertRow(filerow + 1, rows->chars + filecol, rows->size - filecol);
+		rows = &E.rows[filerow];
+		rows->chars[filecol] = '\0';
+		rows->size = filecol;
+		editorUpdateRow(rows);
+	}
+
+	fixCursor();
+}
+
 /* Delete the char at the current prompt position. */
 void editorDelChar() {
 	int filerow = E.rowoff + E.cy;
 	int filecol = E.coloff + E.cx;
-	erow* row = (filerow >= E.numrows) ? nullptr : &E.row[filerow];
+	erow* row = (filerow >= E.rows.size()) ? nullptr : &E.rows[filerow];
 
 	if (row == nullptr) {
 		return;
 	}
 	if (filecol == 0 && filerow == 0) {
-		if (E.numrows == 1 && row->size == 0) {
+		if (E.rows.size() == 1 && row->size == 0) {
 			editorDelRow(filerow);
 			E.rowoff = 0;
 			E.cy = 0;
@@ -426,8 +451,8 @@ void editorDelChar() {
 	if (filecol == 0) {
 		/* Handle the case of column 0, we need to move the current line
          * on the right of the previous one. */
-		filecol = E.row[filerow - 1].size;
-		editorRowAppendString(&E.row[filerow - 1], row->chars, row->size);
+		filecol = E.rows[filerow - 1].size;
+		editorRowAppendString(&E.rows[filerow - 1], row->chars, row->size);
 		editorDelRow(filerow);
 		row = nullptr;
 		if (E.cy == 0)
@@ -454,19 +479,21 @@ void editorDelChar() {
 
 /* Load the specified program in the editor memory and returns 0 on success
  * or 1 on error. */
-void editorOpen(const char* filename, MyFs& myfs) {
-	E.dirty = false;
-	free(E.filename);
+ int editorOpen(MyFs& myfs, const std::string& filename) {
+	if (filename.empty()) {
+		return -1;
+	}
 
-
-	size_t fnlen = strlen(filename) + 1;
-	E.filename = static_cast<char*>(malloc(fnlen));
-	memcpy(E.filename, filename, fnlen);
-
+	if (!myfs.isFileExists(MyFs::splitPath(filename).first)) {
+		return 1;
+	}
 
 	if (!myfs.isFileExists(filename)) {
-		return;
+		return -1;
 	}
+	E.dirty = false;
+	E.filename = filename;
+
 
 	std::string content;
 	content = myfs.getContent(filename);
@@ -479,64 +506,49 @@ void editorOpen(const char* filename, MyFs& myfs) {
 		if (!line.empty() && (line.back() == '\r')) {
 			line.pop_back();
 		}
-		editorInsertRow(E.numrows, line.c_str(), line.length());
+		editorInsertRow(E.rows.size(), line.c_str(), line.length());
 		start = end + 1;
 		end = content.find('\n', start);
 	}
 
-	// Handle the last line if there's no newline at the end
-	//line = content.substr(start);
-	//if (!line.empty() && (line.back() == '\r')) {
-	//	line.pop_back();
-	//}
-	//editorInsertRow(E.numrows, line.c_str(), line.length());
-
 	E.dirty = false;
+	return 0;
 }
 
-char* editorPrompt(const char* prompt) {
-	size_t bufsize = 128;
-	char* buf = (char*)malloc(bufsize);
-	size_t buflen = 0;
-	buf[0] = '\0';
+std::string editorPrompt(const char* prompt) {
+	std::string buf;
 	while (true) {
-		editorSetStatusMessage(prompt, buf);
+		editorSetStatusMessage(prompt, buf.c_str());
 		editorRefreshScreen();
 		int c = readKey();
+
 		if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
-			if (buflen != 0)
-				buf[--buflen] = '\0';
-		} else if (c == '\x1b') {
+			if (!buf.empty()) {
+				buf.pop_back();
+			}
+		} else if (c == ESC || c == CTRL_KEY('q')) { // Escape key
 			editorSetStatusMessage("");
-			free(buf);
-			return nullptr;
-		} else if (c == '\r') {
-			if (buflen != 0) {
+			return "";			// Returning empty string to indicate cancellation
+		} else if (c == '\r' || c == '\n'|| c == CTRL_KEY('s')) { // Enter key
+			if (!buf.empty()) {
 				editorSetStatusMessage("");
 				return buf;
 			}
-		} else if ((iscntrl(c) == 0) && c < 128) {
-			if (buflen == bufsize - 1) {
-				bufsize *= 2;
-				buf = (char*)realloc(buf, bufsize);
-			}
-			buf[buflen++] = c;
-			buf[buflen] = '\0';
+		} else if (c < 128 && std ::iscntrl(c) == 0) {
+			buf.push_back(static_cast<char>(c));
 		}
 	}
 }
-
 /* Save the current file on disk. Return 0 on success, 1 on error. */
 int editorSave(MyFs& myfs) {
 
-	if (E.filename == nullptr) {
-		char* promptedFilename = editorPrompt("Save as: %s (ESC to cancel)");
-		if (promptedFilename == nullptr) {
+	if (E.filename.empty()) {
+		std::string promptedFilename = editorPrompt("Save as: %s (ESC to cancel)");
+		if (promptedFilename.empty()) {
 			editorSetStatusMessage("Save aborted");
 			return 1;
 		}
 		std::string absoluteFilename = MyFs::addCurrentDir(promptedFilename, "/");
-		free(promptedFilename);
 
 		try {
 			if (myfs.isFileExists(absoluteFilename)) {
@@ -544,8 +556,7 @@ int editorSave(MyFs& myfs) {
 				return 1;
 			}
 			myfs.createFile(absoluteFilename);
-			E.filename = static_cast<char*>(malloc(absoluteFilename.size() + 1));
-			strcpy(E.filename, absoluteFilename.c_str());
+			E.filename = absoluteFilename;
 
 		} catch (const std::exception& e) {
 			editorSetStatusMessage("Can't create file! I/O error: %s", e.what());
@@ -590,7 +601,7 @@ int editorSave(MyFs& myfs) {
 
 
 void abAppend(struct abuf* ab, const char* s, int len) {
-	char* newLine = (char*)realloc(ab->b, ab->len + len);
+	char* newLine = static_cast<char*>(realloc(ab->b, ab->len + len));
 
 	if (newLine == nullptr)
 		return;
@@ -629,8 +640,8 @@ void editorRefreshScreen() {
 	for (y = 0; y < E.screenrows; y++) {
 		int filerow = E.rowoff + y;
 
-		if (filerow >= E.numrows) {
-			if (E.numrows == 0 && y == E.screenrows / 3) {
+		if (filerow >= E.rows.size()) {
+			if (E.rows.empty() && y == E.screenrows / 3) {
 				welcomeMessage(&ab);
 			} else {
 				abAppend(&ab, "~\x1b[0K\r\n", 7);
@@ -638,7 +649,7 @@ void editorRefreshScreen() {
 			continue;
 		}
 
-		r = &E.row[filerow];
+		r = &E.rows[filerow];
 
 		int len = r->rsize - E.coloff;
 		if (len > 0) {
@@ -670,9 +681,9 @@ void editorRefreshScreen() {
 	abAppend(&ab, "\x1b[7m", 4);
 	std::array<char, MAX_STATUS_LENGTH> status{};
 	std::array<char, MAX_STATUS_LENGTH> rstatus{};
-	int len = snprintf(status.data(), status.size(), "%.20s - %d lines %s",
-					   E.filename != nullptr ? E.filename : "[No Name]", E.numrows, E.dirty ? "(modified)" : "");
-	int rlen = snprintf(rstatus.data(), rstatus.size(), "%d/%d", E.rowoff + E.cy + 1, E.numrows);
+	int len = snprintf(status.data(), status.size(), "%.20s - %zu lines %s",
+					   E.filename.empty() ? "[No Name]" : E.filename.c_str(), E.rows.size(), E.dirty ? "(modified)" : "");
+	int rlen = snprintf(rstatus.data(), rstatus.size(), "%d/%zu", E.rowoff + E.cy + 1, E.rows.size());
 	if (len > E.screencols)
 		len = E.screencols;
 	abAppend(&ab, status.data(), len);
@@ -698,7 +709,7 @@ void editorRefreshScreen() {
 	int j = 0;
 	int cx = 1;
 	int filerow = E.rowoff + E.cy;
-	erow* row = (filerow >= E.numrows) ? nullptr : &E.row[filerow];
+	erow* row = (filerow >= E.rows.size()) ? nullptr : &E.rows[filerow];
 	if (row != nullptr) {
 		for (j = E.coloff; j < (E.cx + E.coloff); j++) {
 			if (j < row->size && row->chars[j] == TAB)
@@ -738,7 +749,7 @@ void editorFind() {
 #define FIND_RESTORE_HL                                                                                                \
 	do {                                                                                                               \
 		if (saved_hl) {                                                                                                \
-			memcpy(E.row[saved_hl_line].hl, saved_hl, E.row[saved_hl_line].rsize);                                     \
+			memcpy(E.rows[saved_hl_line].hl, saved_hl, E.rows[saved_hl_line].rsize);                                     \
 			free(saved_hl);                                                                                            \
 			saved_hl = NULL;                                                                                           \
 		}                                                                                                              \
@@ -790,15 +801,15 @@ void editorFind() {
 			int i = 0;
 			int current = last_match;
 
-			for (i = 0; i < E.numrows; i++) {
+			for (i = 0; i < E.rows.size(); i++) {
 				current += find_next;
 				if (current == -1)
-					current = E.numrows - 1;
-				else if (current == E.numrows)
+					current = E.rows.size() - 1;
+				else if (current == E.rows.size())
 					current = 0;
-				match = strstr(E.row[current].render, query.data());
+				match = strstr(E.rows[current].render, query.data());
 				if (match != nullptr) {
-					match_offset = match - E.row[current].render;
+					match_offset = match - E.rows[current].render;
 					break;
 				}
 			}
@@ -808,11 +819,11 @@ void editorFind() {
 			FIND_RESTORE_HL;
 
 			if (match != nullptr) {
-				erow* row = &E.row[current];
+				erow* row = &E.rows[current];
 				last_match = current;
 				if (row->hl != nullptr) {
 					saved_hl_line = current;
-					saved_hl = (char*)malloc(row->rsize);
+					saved_hl = static_cast<char*>(malloc(row->rsize));
 					memcpy(saved_hl, row->hl, row->rsize);
 					memset(row->hl + match_offset, HL_MATCH, qlen);
 				}
@@ -841,7 +852,7 @@ void editorMoveCursor(int key) {
 	int filerow = E.rowoff + E.cy;
 	int filecol = E.coloff + E.cx;
 	int rowlen = 0;
-	erow* row = (filerow >= E.numrows) ? nullptr : &E.row[filerow];
+	erow* row = (filerow >= E.rows.size()) ? nullptr : &E.rows[filerow];
 
 	switch (key) {
 	case ARROW_LEFT:
@@ -855,7 +866,7 @@ void editorMoveCursor(int key) {
 		} else {
 			if (filerow > 0) {
 				E.cy--;
-				E.cx = E.row[filerow - 1].size;
+				E.cx = E.rows[filerow - 1].size;
 				if (E.cx > E.screencols - 1) {
 					E.coloff = E.cx - E.screencols + 1;
 					E.cx = E.screencols - 1;
@@ -895,7 +906,7 @@ void editorMoveCursor(int key) {
 
 		// Move to the original column or the end of the line if the line is
 		// shorter
-		row = (E.rowoff + E.cy >= E.numrows) ? nullptr : &E.row[E.rowoff + E.cy];
+		row = (E.rowoff + E.cy >= E.rows.size()) ? nullptr : &E.rows[E.rowoff + E.cy];
 		rowlen = row != nullptr ? row->size : 0;
 		E.cx = (originalColumn < rowlen) ? originalColumn : rowlen;
 		E.coloff = (E.cx > E.screencols - 1) ? E.cx - E.screencols + 1 : 0;
@@ -904,7 +915,7 @@ void editorMoveCursor(int key) {
 		// Save the current column position before moving
 		originalColumn = originalColumn < E.cx ? E.cx : originalColumn;
 
-		if (filerow < E.numrows) {
+		if (filerow < E.rows.size()) {
 			if (E.cy == E.screenrows - 1) {
 				E.rowoff++;
 			} else {
@@ -913,7 +924,7 @@ void editorMoveCursor(int key) {
 		}
 		// Move to the original column or the end of the line if the line is
 		// shorter
-		row = (E.rowoff + E.cy >= E.numrows) ? nullptr : &E.row[E.rowoff + E.cy];
+		row = (E.rowoff + E.cy >= E.rows.size()) ? nullptr : &E.rows[E.rowoff + E.cy];
 		rowlen = row != nullptr ? row->size : 0;
 		E.cx = (originalColumn < rowlen) ? originalColumn : rowlen;
 		E.coloff = (E.cx > E.screencols - 1) ? E.cx - E.screencols + 1 : 0;
@@ -923,7 +934,7 @@ void editorMoveCursor(int key) {
 	/* Fix cx if the current line has not enough chars. */
 	filerow = E.rowoff + E.cy;
 	filecol = E.coloff + E.cx;
-	row = (filerow >= E.numrows) ? nullptr : &E.row[filerow];
+	row = (filerow >= E.rows.size()) ? nullptr : &E.rows[filerow];
 	rowlen = row != nullptr ? row->size : 0;
 	if (filecol > rowlen) {
 		E.cx -= filecol - rowlen;
@@ -937,7 +948,7 @@ void editorMoveCursor(int key) {
 /* Process events arriving from the standard input, which is, the user
  * is typing stuff on the terminal. */
 
-void editorProcessKeypress(MyFs& myfs) {
+bool editorProcessKeypress(MyFs& myfs) {
 	/* When the file is modified, requires Ctrl-q to be pressed N times
      * before actually quitting. */
 	static int quit_times = KILO_QUIT_TIMES;
@@ -958,9 +969,9 @@ void editorProcessKeypress(MyFs& myfs) {
 								   "Press Ctrl-Q %d more times to quit.",
 								   quit_times);
 			quit_times--;
-			return;
+			return false;
 		}
-		throw std::runtime_error("Quit");
+		return true;
 		break;
 	case CTRL_KEY('s'): /* Ctrl-s */
 		editorSave(myfs);
@@ -1004,6 +1015,8 @@ void editorProcessKeypress(MyFs& myfs) {
 	}
 
 	quit_times = KILO_QUIT_TIMES; /* Reset it to the original value. */
+
+	return false;
 }
 
 void updateWindowSize() {
@@ -1026,33 +1039,35 @@ void initEditor() {
 	E.cy = 0;
 	E.rowoff = 0;
 	E.coloff = 0;
-	E.numrows = 0;
-	E.row = nullptr;
+	E.rows.clear();
 	E.dirty = false;
-	E.filename = nullptr;
+	E.filename = "";
 	E.syntax = nullptr;
 	updateWindowSize();
 	signal(SIGWINCH, handleSigWinCh);
 }
 
-void editorStart(MyFs& myfs, const char* filenameIn) {
+void editorStart(MyFs& myfs, const std::string& filenameIn) {
 
 	initEditor();
 	enableRawMode();
 
-	if (filenameIn != nullptr) {
-		std::string filename = MyFs::addCurrentDir(filenameIn, "/");
-		editorOpen(filename.data(), myfs);
+	if (editorOpen(myfs, filenameIn) == 1) {
+		editorSetStatusMessage("File cannot exist, Press any key to exit");
+		editorRefreshScreen();
+		system("pause");
+		disableRawMode();
+		system("cls");
+		return;
 	}
-
 	// both of these handle the case of filename==NULL
 
 	editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
 	try {
-
-		while (true) {
+		bool quit = false;
+		while (quit) {
 			editorRefreshScreen();
-			editorProcessKeypress(myfs);
+			quit = editorProcessKeypress(myfs);
 		}
 	} catch (std::runtime_error& e) {
 		editorAtExit();

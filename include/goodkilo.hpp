@@ -5,6 +5,8 @@
 #define KILO_QUERY_LEN 256
 #define ABUF_INIT {NULL, 0}
 #define MAX_STATUS_LENGTH 80
+#define MAX_KEYPRESS_LENGTH 20
+#define NUMBER_BASE 10
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
@@ -18,6 +20,8 @@
 #include <cstdlib>
 #include <cstdarg>
 #include <functional>
+#include <array>
+#include <vector>
 
 /* Syntax highlight types */
 enum syntaxHighlight {
@@ -50,11 +54,10 @@ struct editorConfig {
 	int coloff;		/* Offset of column displayed. */
 	int screenrows; /* Number of rows that we can show */
 	int screencols; /* Number of cols that we can show */
-	int numrows;	/* Number of rows */
 	bool rawmode;	/* Is terminal raw mode enabled? */
-	erow* row;		/* Rows */
+	std::vector<erow> rows;		/* Rows */
 	bool dirty;		/* File modified but not saved. */
-	char* filename; /* Currently open filename */
+	std::string filename; /* Currently open filename */
 	std::array<char, MAX_STATUS_LENGTH> statusmsg;
 	time_t statusmsg_time;
 	struct editorSyntax* syntax; /* Current syntax highlight, or NULL. */
@@ -95,24 +98,24 @@ using abuf = struct abuf {
 };
 
 /*** row operations ***/
-void editorRowAppendString(erow* row, char* s, size_t len);
+void editorRowAppendString(erow* row, char* s, int len);
 void editorFreeRow(erow* row);
 void editorDelRow(int at);
-void editorInsertRow(int at, const char* s, size_t len);
+void editorInsertRow(int at, const char* s, int len);
 void editorUpdateRow(erow* row);
 int editorRowCxToRx(erow* row, int cx);
 int editorRowRxToCx(erow* row, int rx);
 void editorRowInsertChar(erow* row, int at, int c);
 void editorRowDelChar(erow* row, int at);
-void editorOpen(const char* filename, MyFs& myfs);
+void editorOpen(const std::string& filename, MyFs& myfs);
 char* editorRowsToString(int* buflen);
 int editorSave(MyFs& myfs);
 void editorFindCallback(char* query, int key);
 void editorFind();
-char* editorPrompt(const char* prompt);
+std::string editorPrompt(const char* prompt);
 void editorMoveCursor(int key);
 int readKey();
-void editorProcessKeypress(MyFs& myfs);
+bool editorProcessKeypress(MyFs& myfs);
 int interpretExtendedKeys();
 inline void snapCursorToEndOfLine(erow* row);
 void editorSetStatusMessage(const char* fmt, ...);
@@ -126,7 +129,8 @@ void editorInsertChar(int c);
 void editorDelChar();
 void editorInsertNewline();
 void initEditor();
-void editorStart(MyFs& myfs, const char* filename);
+void editorStart(MyFs& myfs, const std::string& filenameIn);
+void fixCursor();
 
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
 

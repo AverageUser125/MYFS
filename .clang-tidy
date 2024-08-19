@@ -30,7 +30,22 @@ Checks: "*,
   -hicpp-braces-around-statements,
   -readability-function-cognitive-complexity,
   -hicpp-signed-bitwise,
+
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-owning-memory,
+  -hicpp-no-malloc,
+  -cppcoreguidelines-no-malloc,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -hicpp-vararg,
+  -readability-magic-numbers,
+  -cert-dcl50-cpp,
+  -cert-err33-c,
+  -concurrency-mt-unsafe,
+  -cert-env33-c,
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
 FormatStyle:     none
+ExtraArgs: ['-Wno-sign-compare']

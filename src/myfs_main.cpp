@@ -137,7 +137,7 @@ CommandType getCommandType(const std::string& cmd) {
 void editFile(MyFs& myfs, const std::string& fileLocation) {
 
 	if (fileLocation.empty()) {
-		editorStart(myfs, nullptr);
+		editorStart(myfs, "");
 	}
 
 	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(fileLocation);
@@ -149,7 +149,7 @@ void editFile(MyFs& myfs, const std::string& fileLocation) {
 	}
 
 	try {
-		editorStart(myfs, fileLocation.c_str());
+		editorStart(myfs, fileLocation);
 	} catch (std::runtime_error& e) {
 	}
 }
