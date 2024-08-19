@@ -7,16 +7,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #undef DELETE
-#include <iostream>
 #include <vector>
 #include <string>
-#include <conio.h>
 #include "config.hpp"
 #include "myfs.hpp"
-#include <stdexcept>
-#include <vector>
-#include <string>
-#include <cstdarg>
 
 using erow = struct erow {
 	size_t idx;  /* Row index in the file, zero-based. */

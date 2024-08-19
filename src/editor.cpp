@@ -1,4 +1,11 @@
 #include "editor.hpp"
+#include <cassert>
+#include <consoleapi2.h>
+#include <EntryInfo.hpp>
+#include <minwindef.h>
+#include <winnt.h>
+#include <conio.h>
+
 static struct editorConfig E;
 static DWORD originalConsoleMode;
 
@@ -427,114 +434,6 @@ void editorRefreshScreen() {
 	COORD cursorPos = {(SHORT)E.cx, (SHORT)E.cy};
 	SetConsoleCursorPosition(hConsole, cursorPos);
 }
-
-
-/* void editorRefreshScreen() {
-	int y = 0;
-	erow* r = nullptr;
-	std::vector<char> ab;
-	// stdout stuff
-	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-	CONSOLE_CURSOR_INFO cursorInfo;
-	GetConsoleCursorInfo(hConsole, &cursorInfo);
-	CONSOLE_SCREEN_BUFFER_INFO csbi;
-	GetConsoleScreenBufferInfo(hConsole, &csbi);
-	DWORD written; // temp variable -- unsused
-
-	cursorInfo.bVisible = FALSE;
-	SetConsoleCursorInfo(hConsole, &cursorInfo);
-
-	SetConsoleCursorPosition(hConsole, {0, 0}); // go home
-	for (y = 0; y < E.screenrows; y++) {
-		int filerow = E.rowoff + y;
-
-		if (filerow >= E.rows.size()) {
-			if (E.rows.size() == 0 && y == E.screenrows / 3) {
-				welcomeMessage(ab);
-			} else {
-				abAppend(ab, "~\x1b[0K\r\n", 7);
-			}
-			continue;
-		}
-
-		r = &E.rows[filerow];
-
-		int len = r->rsize - E.coloff;
-		if (len > 0) {
-			if (len > E.screencols)
-				len = E.screencols;
-			char* c = r->render + E.coloff;
-			unsigned char* hl = r->hl + E.coloff;
-			int j = 0;
-			for (j = 0; j < len; j++) {
-				if (hl[j] == HL_NONPRINT) {
-					char sym = 0;
-					if (c[j] <= 26)
-						sym = '@' + c[j];
-					else
-						sym = '?';
-					abAppend(ab, &sym, 1);
-				} else {
-					abAppend(ab, c + j, 1);
-				}
-			}
-		}
-		abAppend(ab, "\x1b[39m", 5);
-		abAppend(ab, "\x1b[0K", 4);
-		abAppend(ab, "\r\n", 2);
-	}
-
-	// Create a two rows status. First row:
-	abAppend(ab, "\x1b[0K", 4);
-	abAppend(ab, "\x1b[7m", 4);
-	std::array<char, MAX_STATUS_LENGTH> status{};
-	std::array<char, MAX_STATUS_LENGTH> rstatus{};
-	int len = snprintf(status.data(), status.size(), "%.20s - %llu lines %s",
-					   E.filename != nullptr ? E.filename : "[No Name]", E.rows.size(), E.dirty ? "(modified)" : "");
-	int rlen = snprintf(rstatus.data(), rstatus.size(), "%u/%llu", E.rowoff + E.cy + 1, E.rows.size());
-	if (len > E.screencols)
-		len = E.screencols;
-	abAppend(ab, status.data(), len);
-	while (len < E.screencols) {
-		if (E.screencols - len == rlen) {
-			abAppend(ab, rstatus.data(), rlen);
-			break;
-		}
-		abAppend(ab, " ", 1);
-		len++;
-	}
-	abAppend(ab, "\x1b[0m\r\n", 6);
-
-	// Second row depends on E.statusmsg and the status message update time.
-	abAppend(ab, "\x1b[0K", 4);
-	int msglen = strlen(E.statusmsg.data());
-	if ((msglen != 0) && time(nullptr) - E.statusmsg_time < 5)
-		abAppend(ab, E.statusmsg.data(), msglen <= E.screencols ? msglen : E.screencols);
-
-	// Put cursor at its current position. Note that the horizontal position
-    // at which the cursor is displayed may be different compared to 'E.cx'
-    // because of TABs.
-	int j = 0;
-	int cx = 1;
-	int filerow = E.rowoff + E.cy;
-	erow* rows = (filerow >= E.rows.size()) ? nullptr : &E.rows[filerow];
-	if (rows != nullptr) {
-		for (j = E.coloff; j < (E.cx + E.coloff); j++) {
-			if (j < rows->size && rows->chars[j] == TAB)
-				cx += (TAB_SIZE - 1) - ((cx) % TAB_SIZE);
-			cx++;
-		}
-	}
-
-    WriteConsole(hConsole, ab.data(), static_cast<DWORD>(ab.size()), &written, nullptr);
-
-	SetConsoleCursorPosition(hConsole, {(short)cx, (short)E.cy});
-	cursorInfo.bVisible = TRUE;
-	SetConsoleCursorInfo(hConsole, &cursorInfo);
-
-	// ab is freed cause it's a vector
-}
-*/
 #pragma endregion
 
 #pragma region fileIO
@@ -874,7 +773,6 @@ std::string editorRowsToString() {
 		std::string result;
 		result.resize(totlen);
 		char* p = &result[0];
-
 		// Copy rows into the result string
 		for (const auto& row : E.rows) {
 			memcpy(p, row.chars, row.size);
@@ -1091,7 +989,7 @@ void editorStart(MyFs& myfs, const std::string& filenameIn){
 	if (editorOpen(myfs, filenameIn) == 1) {
 		editorSetStatusMessage("File cannot exist, Press any key to exit");
 		editorRefreshScreen();
-		_getch();
+		(void)_getch();
 		disableRawMode();
 		system("cls");
 		return;
