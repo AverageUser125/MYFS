@@ -23,7 +23,7 @@ using erow = struct erow {
                           check. */
 };
 
-#define MAX_STATUS_LENGTH 80
+constexpr auto MAX_STATUS_LENGTH = 80;
 
 struct editorConfig {
 	std::vector<erow> rows; /* Rows */

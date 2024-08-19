@@ -17,10 +17,7 @@ out/
 compile_commands.json
 
 # Own files
-test
-test.bak
-test2
-test2.bak
+test.*
+test2.*
 myfs
 old/
-old/*
