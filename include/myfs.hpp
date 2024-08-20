@@ -17,6 +17,16 @@
 constexpr int HEADER_SIZE = (sizeof(uint8_t) + sizeof(size_t));
 constexpr int ENTRY_BUFFER_SIZE = (HEADER_SIZE + MAX_PATH + sizeof(size_t) + sizeof(size_t));
 
+struct Errors {
+	enum {
+	fileNotExists,
+	fielCantExist,
+	fatPartitionFull,
+	maxDirectoryCapacity,
+	invalidType,
+	};
+};
+
 class MyFs {
   public:
 	explicit MyFs(BlockDeviceSimulator* blkdevsim_);

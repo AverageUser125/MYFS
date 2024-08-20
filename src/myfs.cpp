@@ -20,7 +20,7 @@ MyFs::MyFs(BlockDeviceSimulator* blkdevsim_)
 MyFs::~MyFs() {
 	try {
 		save(); // Ensure all changes are flushed to the block device
-	} catch (std::runtime_error& e) {
+	} catch (...) {
 		// std::cout << e.what() << std::endl;
 	}
 }
@@ -315,14 +315,16 @@ void MyFs::writeDirectoryEntries(const EntryInfo& directoryEntry, const std::vec
 
 void MyFs::addFileToDirectory(const std::string& directoryPath, const std::string& filename) {
 	std::optional<EntryInfo> directoryEntryOpt = getEntryInfo(directoryPath);
-	if (!directoryEntryOpt || directoryEntryOpt->type != DIRECTORY_TYPE) {
-		throw std::runtime_error("Invalid directory1: " + directoryPath);
+	if (!directoryEntryOpt)
+	{
+		throw std::runtime_error("Directory doesn't exist");
+	}
+	const EntryInfo& directoryEntry = *directoryEntryOpt;
+	if (directoryEntry.type != DIRECTORY_TYPE) {
+		throw std::runtime_error("Invalid type: " + directoryPath);
 	}
 
-	const EntryInfo& directoryEntry = *directoryEntryOpt;
-
-	if (filename == "/" || filename == " " || filename.empty() || filename == "\n" || filename == "\r" ||
-		filename == "\t" || filename == "." || filename == "..")  {
+	if ((filename.size() == 1 && (isspace(filename[0]) || filename[0] == '.')) || filename.empty() || filename == "..")  {
 		return;
 	}
 	// Read directory entries

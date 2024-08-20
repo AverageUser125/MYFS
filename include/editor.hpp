@@ -11,6 +11,7 @@
 #include <string>
 #include "config.hpp"
 #include "myfs.hpp"
+#include <functional>
 
 using erow = struct erow {
 	size_t idx;  /* Row index in the file, zero-based. */
@@ -18,7 +19,6 @@ using erow = struct erow {
 	size_t rsize; /* Size of the rendered row. */
 	char* chars;	   /* Row content. */
 	char* render;	   /* Row content "rendered" for screen (for TABs). */
-	unsigned char* hl; /* Syntax highlight type for each character in render.*/
 	int hl_oc;		   /* Row had open comment at end in last syntax highlight
                           check. */
 };
@@ -32,6 +32,7 @@ struct editorConfig {
 	time_t statusmsg_time = 0;
 	struct editorSyntax* syntax = nullptr; /* Current syntax highlight, or NULL. */
 	size_t cx = 0, cy = 0;		/* Cursor x and y position in characters */
+	size_t rx = 0;
 	size_t rowoff = 0;			   /* Offset of row displayed. */
 	size_t coloff = 0;			/* Offset of column displayed. */
 	size_t screenrows = 0;		   /* Number of rows that we can show */
@@ -83,8 +84,8 @@ void editorInsertChar(int c);
 void editorRefreshScreen();
 void editorSetStatusMessage(const char* fmt, ...);
 int editorOpen(MyFs& myfs, const std::string& filename);
-std::string editorPrompt(const char* prompt);
-int editorSave(MyFs & myfs);
+std::string editorPrompt(const char* prompt, void (*callback)(std::string&, int));
+int editorSave(MyFs& myfs);
 std::string editorRowsToString();
 void editorInsertRow(int at, const char* s, size_t len);
 void editorStart(MyFs& myfs, const std::string& filenameIn);

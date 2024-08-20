@@ -13,7 +13,7 @@ constexpr size_t FAT_SIZE = 4096;
 #define KILO_QUIT_TIMES 3
 #define KILO_VERSION "0.0.2"
 #define WELCOME_MESSAGE "Kilo editor -- verison " KILO_VERSION "\x1b[0K\r\n"
-#define TAB_SIZE 8
+#define TAB_SIZE 4
 #pragma endregion
 
 // clang-format off
