@@ -37,7 +37,7 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     # Enable SIMD optimizations, Show all warnings, (except contexpr)
-    add_compile_options(/arch:AVX2 /W4 /EHsc)
+    add_compile_options(/arch:AVX2 /W4)
     # Disable CRT secure warnings
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
