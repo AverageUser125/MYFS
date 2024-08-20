@@ -161,7 +161,7 @@ void printEntries(const std::vector<EntryInfo>& entries) {
 	// clang-format on
 }
 
-bool handleCommand(const std::string& command, std::vector<std::string>& args, MyFs& myfs, std::string& currentDir) {
+Errors handleCommand(const std::string& command, std::vector<std::string>& args, MyFs& myfs, std::string& currentDir) {
 
 	CommandType commandType = getCommandType(command);
 
@@ -172,7 +172,7 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 			dlist = myfs.listTree();
 		} else {
 			std::cout << RED << TREE_CMD << ": zero arguments requested" RESET << std::endl;
-			return false;
+			return invalidArguments;
 		}
 		printEntries(dlist);
 
@@ -181,11 +181,14 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 	// Swaped with LIST cause it gave me anurism
 	case CommandType::TREE: {
 		std::vector<EntryInfo> dlist;
+		Errors err = OK;
 		if (args.empty()) {
-			dlist = myfs.listDir(currentDir);
+			err = myfs.listDir(currentDir, dlist);
 		} else {
-			dlist = myfs.listDir(args[0]);
+			err = myfs.listDir(args[0], dlist);
 		}
+		if (err != OK)
+			return err;
 		for (EntryInfo& entry : dlist) {
 			entry.path = MyFs::splitPath(entry.path).second;
 		}
@@ -198,20 +201,23 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 		break;
 	case CommandType::CREATE_FILE:
 		if (args.size() != 1) {
-			throw std::runtime_error(CREATE_FILE_CMD " needs arguments");
+			return invalidArguments;
 		}
-		myfs.createFile(args[0]);
+		return myfs.createFile(args[0]);
 		break;
 	case CommandType::CONTENT: {
 		if (args.size() != 1) {
-			throw std::runtime_error(CONTENT_CMD " needs arguments");
+			return invalidArguments;
 		}
 		std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(args[0]);
 		if (!entryOpt) {
-			throw std::runtime_error("File doesn't exist");
+			return fileNotFound;
 		}
 		EntryInfo entry = *entryOpt;
-		std::string content = myfs.getContent(entry);
+		std::string content; 
+		Errors err = myfs.getContent(entry, content);
+		if (err != OK)
+			return OK;
 		if (!content.empty() && content.back() != '\n') {
 			content += '\n';
 		}
@@ -220,14 +226,16 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 	}
 	case CommandType::DELETE: {
 		if (args.size() != 1) {
-			throw std::runtime_error(DELETE_CMD " needs arguments");
+			return invalidArguments;
 		}
-		myfs.remove(args[0]);
+		Errors err = myfs.remove(args[0]);
+		if (err != OK)
+			return err;
 		break;
 	}
 	case CommandType::EDIT: {
 		if (args.size() > 1) {
-			throw std::runtime_error(EDIT_CMD " needs arguments");
+			return invalidArguments;
 		}
 		if (args.size() == 1) {
 			editorStart(myfs, args[0].c_str());
@@ -238,25 +246,25 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 	}
 	case CommandType::CREATE_DIR: {
 		if (args.size() != 1) {
-			throw std::runtime_error(CREATE_DIR_CMD " needs arguments");
+			return invalidArguments;
 		}
-		myfs.createDirectory(args[0]);
+		Errors err = myfs.createDirectory(args[0]);
+		if (err != OK)
+			return err;
 		break;
 	}
 	case CommandType::CD: {
 		if (args.size() != 1) {
-			throw std::runtime_error(CD_CMD " needs arguments");
+			return invalidArguments;
 		}
 		std::string newDir = args[0];
 		std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(newDir);
 		if (!entryOpt) {
-			std::cout << RED << "No such file or directory: " << args[0] << RESET << std::endl;
-			break;
+			return fileNotFound;
 		}
 		EntryInfo entry = entryOpt.value();
 		if (entry.type != DIRECTORY_TYPE) {
-			std::cout << RED << "Cannot change directory to a file: " << args[0] << RESET << std::endl;
-			break;
+			return invalidType;
 		}
 
 		currentDir = entry.path;
@@ -264,26 +272,30 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 	}
 	case CommandType::MOVE: {
 		if (args.size() != 2) {
-			throw std::runtime_error(MOVE_CMD " requires 2 arguments");
+			return invalidArguments;
 		}
-		myfs.move(args[0], args[1]);
+		Errors err = myfs.move(args[0], args[1]);
+		if (err != OK)
+			return err;
 		break;
 	}
 	case CommandType::COPY: {
 		if (args.size() != 2) {
-			throw std::runtime_error(COPY_CMD " requires 2 arguments");
+			return invalidArguments;
 		}
-		myfs.copy(args[0], args[1]);
+		Errors err =myfs.copy(args[0], args[1]);
+		if (err != OK)
+			return err;
 		break;
 	}
 	case CommandType::EXIT:
-		return true;
+		return fileSystemClosed;
 	case CommandType::UNKNOWN:
 	default:
 		std::cout << RED "Unknown command: " << command << RESET << std::endl;
 		break;
 	}
-	return false;
+	return OK;
 }
 
 int main(int argc, char** argv) {
@@ -299,12 +311,16 @@ int main(int argc, char** argv) {
 		bldevfile = argv[1];
 	} else {
 		std::cerr << "Too many arguments" << std::endl;
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	std::string currentDir = "/";
 	// may fail, if can't create file, or file is read-only
-	BlockDeviceSimulator blkdevptr(bldevfile);
+	BlockDeviceSimulator blkdevptr;
+	if (!blkdevptr.init(bldevfile)) {
+		std::cerr << "failed to virtually open file\n";
+		return EXIT_FAILURE;
+	}
 	MyFs myfs(&blkdevptr);
 
 	// Print the welcome message
@@ -312,8 +328,8 @@ int main(int argc, char** argv) {
 	std::cout << "To get help, please type 'help' on the prompt below.\r\n" << std::endl;
 
 
-	bool exit = false;
-	while (!exit) {
+	Errors err = OK;
+	while (err != fileSystemClosed) {
 		std:: cout << (BOLDGREEN FS_NAME RESET ":" BOLDBLUE + currentDir + RESET "$ ");
 
 		std::string cmdline;
@@ -329,12 +345,13 @@ int main(int argc, char** argv) {
 		for (std::string& arg : args) {
 			arg = addCurrentDirAdvance(arg, currentDir);
 		}
-
-		try {
-			exit = handleCommand(command, args, myfs, currentDir);
-		} catch (const std::exception& e) {
-			std::cout << RED << "An error occurred: " << e.what() << RESET << std::endl;
+		err = handleCommand(command, args, myfs, currentDir);
+		if (err != OK && err != fileSystemClosed) {
+			std::cout << RED << "An error occurred: " << MyFs::errToString(err) << RESET << std::endl;
+		}
+		if (err == invalidArguments) {
+			std::cout << "use \"help\" to get the correct arguements\n";
 		}
 	}
-	return 0;
+	return EXIT_SUCCESS;
 }

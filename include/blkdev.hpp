@@ -5,7 +5,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <stdexcept>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -20,8 +19,9 @@ constexpr int NEW_FILE_PERMISSIONS = 0644;
 
 class BlockDeviceSimulator {
   public:
-	explicit BlockDeviceSimulator(const std::string& fname);
+	explicit BlockDeviceSimulator();
 	~BlockDeviceSimulator();
+	bool init(const std::string& fname);
 
 	void read(size_t addr, size_t size, char* ans) const;
 	void write(size_t addr, size_t size, const char* data);

@@ -537,9 +537,6 @@ void editorRefreshScreen() {
 	if (filename.empty()) {
 		return -1;
 	}
-	if (!myfs.isFileExists(MyFs::splitPath(filename).first)) {
-		return 1;
-	}
 	E.filename = filename;
 	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(filename);
 	if (!entryOpt) { 
@@ -548,8 +545,11 @@ void editorRefreshScreen() {
 	}
 	EntryInfo entry = *entryOpt;
 	E.dirty = false;
-
-	std::string content = myfs.getContent(entry);
+	std::string content;
+	Errors err = myfs.getContent(entry, content);
+	if (err != OK) {
+		return -1;
+	}
 	std::string line;
 	size_t start = 0;
 	size_t end = content.find('\n');
@@ -622,34 +622,35 @@ int editorSave(MyFs& myfs) {
 		}
 		std::string absoluteFilename = MyFs::addCurrentDir(promptedFilename, "/");
 
-		try {
-			if (myfs.isFileExists(absoluteFilename)) {
-				editorSetStatusMessage("File already exists. Save aborted.");
-				return 1;
-			}
-			myfs.createFile(absoluteFilename);
-			E.filename = absoluteFilename;
-
-		} catch (const std::exception& e) {
-			editorSetStatusMessage("Can't create file! I/O error: %s", e.what());
+		if (myfs.isFileExists(absoluteFilename) != OK) {
+			editorSetStatusMessage("File already exists. Save aborted.");
 			return 1;
 		}
+		Errors err = myfs.createFile(absoluteFilename);
+		if (err != OK) {
+			editorSetStatusMessage("Can't create file! I/O error: %s",MyFs::errToString(err));
+			return 1;
+		}
+		E.filename = absoluteFilename;
 	}
 
 	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(E.filename);
 	EntryInfo entry;
 	if (!entryOpt) {
-		entry = myfs.createFile(E.filename);	
+		Errors err = myfs.createFile(E.filename, &entry);
+		if (err != OK) {
+			editorSetStatusMessage("Can't create file! I/O error: %s", MyFs::errToString(err));
+			return 1;
+		}
 	} else {
 		entry = *entryOpt;
 	}
 
 	std::string content = editorRowsToString();
 
-	try {
-		myfs.setContent(entry, content);
-	} catch (const std::exception& e) {
-		editorSetStatusMessage("Can't save! I/O error: %s", e.what());
+	Errors err = myfs.setContent(entry, content);
+	if(err != OK) {
+		editorSetStatusMessage("Can't save! I/O error: %s", MyFs::errToString(err));
 		return 1;
 	}
 

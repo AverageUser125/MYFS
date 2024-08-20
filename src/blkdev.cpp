@@ -1,7 +1,10 @@
 #include "blkdev.hpp"
 #include "config.hpp"
 
-BlockDeviceSimulator::BlockDeviceSimulator(const std::string& fname) : fd(INVALID_HANDLE_VALUE), filemap(nullptr) {
+BlockDeviceSimulator::BlockDeviceSimulator() : fd(INVALID_HANDLE_VALUE), filemap(nullptr) {
+}
+
+bool BlockDeviceSimulator::init(const std::string& fname){
 	// Check if the file exists
 	fd = CreateFileA(fname.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
 					 nullptr);
