@@ -1,7 +1,10 @@
-cmake_minimum_required(VERSION 3.16)
+ cmake_minimum_required(VERSION 3.16)
 
 # delete .out/CmakeFiles folder to make this work
 option(PRODUCTION_BUILD "Make this a production build" OFF)
+
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 # project name
 set(PROJECT_NAME "myfs")
@@ -34,8 +37,6 @@ endif()
 
 if(MSVC)
     # Set MSVC runtime library
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     # Enable SIMD optimizations, Show all warnings, (except contexpr)
     add_compile_options(/arch:AVX2 /W4 /EHsc)
     # Disable CRT secure warnings
@@ -64,7 +65,7 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
 if(PRODUCTION_BUILD)
     # setup the ASSETS_PATH macro to be in the root folder of your exe
-    target_compile_definitions(${PROJECT_NAME} PUBLIC RESOURCES_PATH="./resources/") 
+    target_compile_definitions(${PROJECT_NAME} PUBLIC RESOURCES_PATH="./") 
     # remove the option to debug asserts.
     target_compile_definitions(${PROJECT_NAME} PUBLIC PRODUCTION_BUILD=1) 
 else()
