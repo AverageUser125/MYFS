@@ -2,8 +2,8 @@
 #include "config.hpp"
 
 BlockDeviceSimulator::BlockDeviceSimulator(const std::string& fname) : fd(INVALID_HANDLE_VALUE), filemap(nullptr) {
-	// Check if the file exists
-	fd = CreateFileA(fname.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+	// Get File handle, and make sure no one can read, write or delete it (FILE_SHARE_READ to allow reading instead of 0)
+	fd = CreateFile(fname.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
 					 nullptr);
 
 	if (fd == INVALID_HANDLE_VALUE) {
