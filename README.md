@@ -27,6 +27,7 @@ The usage of this project follows a similar convention to working with commands 
 Additionally, a custom 'help' command is available to provide further assistance and guidance.
 
 ## Credits
-- https://learn.microsoft.com/en-us/windows/win32/api/
+- https://github.com/meemknight/cmakeSetup
+- 
 - https://gitlab.com/magshimim0/archi/file-system
 - https://stackoverflow.com/questions/32719523/unix-path-resolution-in-c

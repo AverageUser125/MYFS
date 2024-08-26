@@ -8,34 +8,33 @@
 MyFs::MyFs(BlockDeviceSimulator* blkdevsim_)
 	: blkdevsim(blkdevsim_), allocator(FAT_SIZE, blkdevsim->DEVICE_SIZE, DEFAULT_BLOCK_SIZE), totalFatSize(FAT_SIZE),
 	  BLOCK_SIZE(DEFAULT_BLOCK_SIZE) {
-	try {
-		load();
+
+	Errors err = load();
+	if (err == OK) {
 		allocator.initialize(entries, BLOCK_SIZE);
 		allocator.defrag(entries, blkdevsim);
-	} catch (const std::exception& e) {
-		format();
+		return;
 	}
+		
+	(void)format();
 }
 
 MyFs::~MyFs() {
-	try {
-		save(); // Ensure all changes are flushed to the block device
-	} catch (...) {
-		// std::cout << e.what() << std::endl;
-	}
+	// if fails nothing can do
+	(void)save(); // Ensure all changes are flushed to the block device
 }
 
 #pragma region fatIO
 
-void MyFs::save() {
+Errors MyFs::save() {
 	// Make sure we have the correct size
-	assert(std::accumulate(entries.begin(), entries.end(), static_cast<size_t>(0),
-						   [](size_t totalSize, const EntryInfo& entry) {
-							   return totalSize + entry.serializedSize();
-						   }) == totalFatSize);
+	// assert(std::accumulate(entries.begin(), entries.end(), static_cast<size_t>(0),
+	//					   [](size_t totalSize, const EntryInfo& entry) {
+	//						   return totalSize + entry.serializedSize();
+	//					   }) == totalFatSize);
 
 	if (totalFatSize > static_cast<size_t>(FAT_SIZE - BLOCK_SIZE)) {
-		throw std::overflow_error("FAT partition full");
+		return fatPartitionFull;
 	}
 	// Allocate a buffer to hold all serialized entries
 	std::vector<char> buffer(totalFatSize);
@@ -51,22 +50,24 @@ void MyFs::save() {
 	blkdevsim->write(0, sizeof(header), reinterpret_cast<const char*>(&header));
 	blkdevsim->write(sizeof(header), sizeof(totalFatSize), reinterpret_cast<const char*>(&totalFatSize));
 	blkdevsim->write(sizeof(header) + sizeof(totalFatSize), buffer.size(), buffer.data());
+
+	return OK;
 }
 
-void MyFs::load() {
+Errors MyFs::load() {
 	// Read the header
 	myfs_header header(BLOCK_SIZE);
 	blkdevsim->read(0, sizeof(header), reinterpret_cast<char*>(&header));
 
 	// Check for magic number and version
 	if (strncmp(header.magic.data(), MYFS_MAGIC, header.magic.size()) != 0) {
-		throw std::runtime_error("Invalid file system magic number.");
+		return invalidHeaderMagic;
 	}
 	if (header.version != CURR_VERSION) {
-		throw std::runtime_error("Unsupported file system version.");
+		return invalidHeaderVersion;
 	}
 	if (header.blockSize <= 1 && header.blockSize < FAT_SIZE) {
-		throw std::runtime_error("Invalid block size");
+		return invalidHeaderBlockSize;
 	}
 	BLOCK_SIZE = header.blockSize;
 	blkdevsim->read(sizeof(header), sizeof(totalFatSize), reinterpret_cast<char*>(&totalFatSize));
@@ -86,7 +87,7 @@ void MyFs::load() {
 		entry.deserialize(buffer.data());
 		// Validate path length
 		if (entry.path.size() > MAX_PATH) {
-			throw std::runtime_error("Path exceeds maximum length.");
+			return maxPathLengthReached;
 		}
 		// Calculate the full entry size
 		size_t entrySize = entry.serializedSize();
@@ -100,9 +101,10 @@ void MyFs::load() {
 		// Update the offset for the next entry
 		offset += entrySize;
 	}
+	return OK;
 }
 
-void MyFs::format() {
+Errors MyFs::format() {
 	myfs_header header(DEFAULT_BLOCK_SIZE);
 	totalFatSize = 0;
 	blkdevsim->write(0, sizeof(header), reinterpret_cast<const char*>(&header));
@@ -118,58 +120,63 @@ void MyFs::format() {
 	newEntry.size = 0;
 	newEntry.address = -1;
 	// Add the entry to the file system
-	addTableEntry(newEntry);
+	return addTableEntry(newEntry);
 }
 
 #pragma endregion
 
 #pragma region entryManagment
 
-void MyFs::setContent(const std::string& filepath, const std::string& content) {
+Errors MyFs::setContent(const std::string& filepath, const std::string& content) {
 	std::optional<EntryInfo> entryOpt = getEntryInfo(filepath);
 	if (!entryOpt) {
-		throw std::runtime_error("File not found: " + filepath);
+		return fileNotFound;
 	}
 
 	EntryInfo entry = *entryOpt;
 	size_t newSize = content.size();
 
-	reallocateTableEntry(entry, newSize);
+	Errors err = reallocateTableEntry(entry, newSize);
+	if (err != OK)
+		return err;
 	blkdevsim->write(entry.address, newSize, content.data());
 
-	save();
+	return save();
 }
 
-void MyFs::setContent(EntryInfo entry, const std::string& content) {
+Errors MyFs::setContent(EntryInfo entry, const std::string& content) {
 	size_t newSize = content.size();
 
-	reallocateTableEntry(entry, newSize);
+	Errors err = reallocateTableEntry(entry, newSize);
+	if (err != OK)
+		return err;
 	blkdevsim->write(entry.address, newSize, content.data());
 
-	save();
+	return save();
 }
 
-std::string MyFs::getContent(const EntryInfo& entry) {
+Errors MyFs::getContent(const EntryInfo& entry, std::string& input) {
 	std::string content(entry.size, '\0');
-	blkdevsim->read(entry.address, entry.size, content.data());
-	return content;
+	input.resize(entry.size);
+	blkdevsim->read(entry.address, entry.size, input.data());
+	return OK;
 }
 
-std::string MyFs::getContent(const std::string& filepath) {
+Errors MyFs::getContent(const std::string& filepath, std::string& input) {
 	std::optional<EntryInfo> entryOpt = getEntryInfo(filepath);
 	if (!entryOpt) {
-		throw std::runtime_error("File not found");
+		return fileNotFound;
 	}
 
 	const EntryInfo entry = *entryOpt;
-	std::string content(entry.size, '\0');
-	blkdevsim->read(entry.address, entry.size, content.data());
-	return content;
+	input.resize(entry.size);
+	blkdevsim->read(entry.address, entry.size, input.data());
+	return OK;
 }
 
-std::optional<EntryInfo> MyFs::getEntryInfo(const std::string& fileName) {
+std::optional<EntryInfo> MyFs::getEntryInfo(const std::string& filename) {
 	auto it =
-		std::find_if(entries.begin(), entries.end(), [&](const EntryInfo& entry) { return entry.path == fileName; });
+		std::find_if(entries.begin(), entries.end(), [&](const EntryInfo& entry) { return entry.path == filename; });
 
 	if (it != entries.end()) {
 		return *it;
@@ -177,31 +184,30 @@ std::optional<EntryInfo> MyFs::getEntryInfo(const std::string& fileName) {
 	return std::nullopt;
 }
 
-void MyFs::addTableEntry(EntryInfo& entryToAdd) {
+Errors MyFs::addTableEntry(EntryInfo& entryToAdd) {
 	// Insert the entry into the set
 	if (totalFatSize >= FAT_SIZE - 1) {
-		entries.erase(entryToAdd);
-		throw std::overflow_error("FAT table full");
+		return fatPartitionFull;
 	}
 	totalFatSize += entryToAdd.serializedSize();
 
 	entryToAdd.address = allocator.allocate(entryToAdd.size);
 	assert(entryToAdd.address >= FAT_SIZE && entryToAdd.address < blkdevsim->DEVICE_SIZE);
 	entries.insert(entryToAdd);
-	save();
+	return save();
 }
 
-void MyFs::removeTableEntry(EntryInfo& entryToRemove) {
+Errors MyFs::removeTableEntry(EntryInfo& entryToRemove) {
 	totalFatSize -= entryToRemove.serializedSize();
 	assert(totalFatSize >= 1);
 
 	allocator.deallocate(entryToRemove);
 	entries.erase(entryToRemove);
 
-	save();
+	return save();
 }
 
-void MyFs::reallocateTableEntry(EntryInfo& entryToUpdate, size_t newSize) {
+Errors MyFs::reallocateTableEntry(EntryInfo& entryToUpdate, size_t newSize) {
 	entries.erase(entryToUpdate);
 	allocator.reallocate(entryToUpdate, newSize);
 	//assert(entryToUpdate.address + entryToUpdate.size == allocator.nextAvailableAddress);
@@ -211,7 +217,7 @@ void MyFs::reallocateTableEntry(EntryInfo& entryToUpdate, size_t newSize) {
 
 	entries.insert(entryToUpdate);
 
-	save();
+	return save();
 }
 
 #pragma endregion
@@ -222,12 +228,15 @@ bool MyFs::isFileExists(const std::string& filepath) {
 	return getEntryInfo(filepath).has_value();
 }
 
-EntryInfo MyFs::createFile(const std::string& filepath) {
+Errors MyFs::createFile(const std::string& filepath, EntryInfo* result) {
+	if (!isFileExists(MyFs::splitPath(filepath).first)) {
+		//return fileCantExist;
+	}
 	if (filepath.empty()) {
-		throw std::runtime_error("invalid file path:" + filepath);
+		return invalidPath;
 	}
 	if (isFileExists(filepath)) {
-		throw std::runtime_error("File already exists");
+		return fileAlreadyExists;
 	}
 	// Create the file entry
 	EntryInfo newEntry;
@@ -237,22 +246,33 @@ EntryInfo MyFs::createFile(const std::string& filepath) {
 	newEntry.address = -1;
 
 	std::pair<std::string, std::string> pathAndName = splitPath(filepath);
-	
+
 	// Add the entry to the file system
-	addFileToDirectory(pathAndName.first, pathAndName.second);
-	addTableEntry(newEntry);
-	return newEntry;
+	Errors err = addFileToDirectory(pathAndName.first, pathAndName.second);
+	if(err != OK) {
+		return err;
+	}
+	err = addTableEntry(newEntry);
+	if (err != OK)
+		return err;
+	if (result != nullptr) {
+		*result = std::move(newEntry);
+	}
+	return OK;
 }
 
 #pragma endregion
 #pragma region directoryIO
 
-EntryInfo MyFs::createDirectory(const std::string& filepath) {
+Errors MyFs::createDirectory(const std::string& filepath, EntryInfo* result) {
+	if (!isFileExists(MyFs::splitPath(filepath).first)) {
+		return fileCantExist;
+	}
 	if (filepath.empty()) {
-		throw std::runtime_error("invalid file path:" + filepath);
+		return invalidPath;
 	}
 	if (isFileExists(filepath)) {
-		throw std::runtime_error("Directory already exists");
+		return fileAlreadyExists;
 	}
 
 	// Create the file entry
@@ -264,40 +284,51 @@ EntryInfo MyFs::createDirectory(const std::string& filepath) {
 
 	// Add the entry to the file system
 	std::pair<std::string, std::string> pathAndName = splitPath(filepath);
-	addFileToDirectory(pathAndName.first, pathAndName.second);
-	addTableEntry(newEntry);
+	Errors err = addFileToDirectory(pathAndName.first, pathAndName.second);
+	if (err != OK) {
+		return err;
+	}
+	err = addTableEntry(newEntry);
+	if (err != OK)
+		return err;
 
-	save();
-	return newEntry;
+	if (result != nullptr) {
+		result = &std::move(newEntry);
+	}
+
+	return save();
 }
 
-std::vector<std::string> MyFs::readDirectoryEntries(const EntryInfo& directoryEntry) {
-	std::vector<std::string> directoryEntries;
-
+Errors MyFs::readDirectoryEntries(const EntryInfo& directoryEntry, std::vector<std::string>& directoryEntries) {
+	assert(directoryEntries.empty());
 	// Ensure the directoryEntry type is correct (e.g., directory type)
 	if (directoryEntry.type != DIRECTORY_TYPE) {
-		throw std::runtime_error("Invalid entry type for directory");
+		return invalidType;
 	}
 
 	// Read the directory content from the file system
-	std::string content = getContent(directoryEntry.path);
-
+	std::string content;
+	Errors err = getContent(directoryEntry.path, content);
+	if (err != OK)
+		return OK;
 	// Assuming entries are separated by new lines or some delimiter
 	std::istringstream stream(content);
 	std::string entry;
 	while (std::getline(stream, entry)) {
 		directoryEntries.push_back(entry);
 	}
-
-	return directoryEntries;
+	return OK;
 }
 
-void MyFs::writeDirectoryEntries(const EntryInfo& directoryEntry, const std::vector<std::string>& directoryEntries) {
+Errors MyFs::writeDirectoryEntries(const EntryInfo& directoryEntry, const std::vector<std::string>& directoryEntries) {
 	if (directoryEntries.size() > MAX_DIRECTORY_SIZE) {
-		throw std::runtime_error("maxium amount of files in a directory exceeded");
+		return maxDirectoryCapacity;
 	}
+	Errors err;
 	if (directoryEntries.empty()) {
-		setContent(directoryEntry, "");
+		err = setContent(directoryEntry, "");
+		if (err != OK)
+			return err;
 	}
 	// Convert directory entries to a single string with appropriate delimiter
 	std::ostringstream oss;
@@ -310,86 +341,96 @@ void MyFs::writeDirectoryEntries(const EntryInfo& directoryEntry, const std::vec
 	// Erase characters from the end to the found position
 	content.erase(end, content.end());
 	// Write the content to the file system
-	setContent(directoryEntry, content);
+	return setContent(directoryEntry, content);
 }
 
-void MyFs::addFileToDirectory(const std::string& directoryPath, const std::string& filename) {
+Errors MyFs::addFileToDirectory(const std::string& directoryPath, const std::string& filename) {
 	std::optional<EntryInfo> directoryEntryOpt = getEntryInfo(directoryPath);
-	if (!directoryEntryOpt)
-	{
-		throw std::runtime_error("Directory doesn't exist");
+	if (!directoryEntryOpt) {
+		return fileNotFound;
 	}
 	const EntryInfo& directoryEntry = *directoryEntryOpt;
 	if (directoryEntry.type != DIRECTORY_TYPE) {
-		throw std::runtime_error("Invalid type: " + directoryPath);
+		return invalidType;
 	}
 
-	if ((filename.size() == 1 && (isspace(filename[0]) || filename[0] == '.')) || filename.empty() || filename == "..")  {
-		return;
+	if ((filename.size() == 1 && (isspace(filename[0]) || filename[0] == '.')) || filename.empty() ||
+		filename == "..") {
+		return invalidPath;
 	}
 	// Read directory entries
-	std::vector<std::string> directoryEntries = readDirectoryEntries(directoryEntry);
-
+	std::vector<std::string> directoryEntries;
+	Errors err = readDirectoryEntries(directoryEntry, directoryEntries);
+	if (err != OK)
+		return err;
 	// Modify directory entries
 	auto it = std::find(directoryEntries.begin(), directoryEntries.end(), filename);
 	if (it != directoryEntries.end()) {
-		throw std::runtime_error("File already exists in the directory: " + filename);
+		return fileAlreadyExists;
 	}
 	directoryEntries.push_back(filename);
 
 	// Write updated directory entries back to disk
-	writeDirectoryEntries(directoryEntry, directoryEntries);
+	return writeDirectoryEntries(directoryEntry, directoryEntries);
 }
 
-void MyFs::removeFileFromDirectory(const std::string& directoryPath, const std::string& filename) {
+Errors MyFs::removeFileFromDirectory(const std::string& directoryPath, const std::string& filename) {
 	std::optional<EntryInfo> directoryEntryOpt = getEntryInfo(directoryPath);
-	if (!directoryEntryOpt || directoryEntryOpt->type != DIRECTORY_TYPE) {
-		throw std::runtime_error("Directory not found: " + directoryPath);
+	if (!directoryEntryOpt){
+		return fileNotFound;
 	}
-
+	if (directoryEntryOpt->type != DIRECTORY_TYPE) {
+		return invalidType;
+	}
+	if (filename == "/" || (directoryPath == "/" && filename.empty())) {
+		return rootIsContant;
+	}
 	const EntryInfo& directoryEntry = *directoryEntryOpt;
 
 	// Read directory entries
-	std::vector<std::string> directoryEntries = readDirectoryEntries(directoryEntry);
-
+	std::vector<std::string> directoryEntries;
+	Errors err = readDirectoryEntries(directoryEntry, directoryEntries);
+	if (err != OK)
+		return err;
 	// Modify directory entries
 	auto it = std::find(directoryEntries.begin(), directoryEntries.end(), filename);
 	if (it == directoryEntries.end()) {
-		if(filename == " " || filename.empty())  {
-			return;
-		}
-		throw std::runtime_error("File not found in the directory: " + filename);
+		return fileNotFound;
 	}
 	directoryEntries.erase(it);
 
 	// Write updated directory entries back to disk
-	writeDirectoryEntries(directoryEntry, directoryEntries);
+	return writeDirectoryEntries(directoryEntry, directoryEntries);
 }
 
 #pragma endregion
 #pragma region generalUtils
 
-std::vector<EntryInfo> MyFs::listDir(const std::string& currentDir) {
+Errors MyFs::listDir(const std::string& currentDir, std::vector<EntryInfo>& result) {
 	if (currentDir.empty()) {
 		return {}; // List root directory if no path is provided
 	}
 	// use readDirectoryEntries
 	std::optional<EntryInfo> directoryEntryOpt = getEntryInfo(currentDir);
-	if (!directoryEntryOpt || directoryEntryOpt->type != DIRECTORY_TYPE) {
-		throw std::runtime_error("Invalid path: " + currentDir);
+	if (!directoryEntryOpt) { 
+		return fileNotFound;
+	}
+	if (directoryEntryOpt->type != DIRECTORY_TYPE){
+		return invalidType;
 	}
 
 	const EntryInfo& directoryEntry = *directoryEntryOpt;
-	std::vector<std::string> directoryEntries = readDirectoryEntries(directoryEntry);
-
-	std::vector<EntryInfo> result;
+	std::vector<std::string> directoryEntries;
+	Errors err = readDirectoryEntries(directoryEntry, directoryEntries);
+	if (err != OK)
+		return err;
 	for (const std::string& filename : directoryEntries) {
 		std::optional<EntryInfo> entryOpt = getEntryInfo(addCurrentDir(filename, currentDir));
 		if (entryOpt) {
 			result.push_back(*entryOpt);
 		}
 	}
-	return result;
+	return OK;
 }
 
 std::vector<EntryInfo> MyFs::listTree() {
@@ -401,108 +442,130 @@ std::vector<EntryInfo> MyFs::listTree() {
 	return result;
 }
 
-void MyFs::remove(const std::string& filepath) {
+Errors MyFs::remove(const std::string& filepath) {
 	std::optional<EntryInfo> entryOpt = getEntryInfo(filepath);
 	if (!entryOpt) {
-		throw std::runtime_error("Invalid file: " + filepath);
+		return fileNotFound;
 	}
 	EntryInfo entry = *entryOpt;
 
 	std::pair<std::string, std::string> pathAndName = splitPath(filepath);
+	Errors err = OK;
 
 	if (entry.type == FILE_TYPE) {
-		removeTableEntry(entry);
-
+		err = removeTableEntry(entry);
+		if (err != OK)
+			return err;
 	} else if (entry.type == DIRECTORY_TYPE) {
-		std::vector<std::string> directoryEntries = readDirectoryEntries(entry);
+		std::vector<std::string> directoryEntries;
+		err = readDirectoryEntries(entry, directoryEntries);
+		if (err != OK)
+			return err;
 		for (const std::string& filename : directoryEntries) {
-			try {
-				remove(addCurrentDir(filename, filepath));
-			} catch (std::runtime_error& e) {
-				// incase
-			}
+			Errors err = remove(addCurrentDir(filename, filepath));
+			if (err != OK)
+				return err;
 		}
-		if (filepath != "/")  {
-			removeTableEntry(entry);
+		if (filepath != "/") {
+			err = removeTableEntry(entry);
+			if (err != OK)
+				return err;
 		}
 	}
-	removeFileFromDirectory(pathAndName.first, pathAndName.second);
+	err = removeFileFromDirectory(pathAndName.first, pathAndName.second);
+	// TODO: consider if this is really good idea since it makes resetting easy
+	if (err == rootIsContant) {
+		return OK;
+	}
+	return err;
 }
 
-void MyFs::move(const std::string& srcfilepath, const std::string& dstfilepath) {
+Errors MyFs::move(const std::string& srcfilepath, const std::string& dstfilepath) {
 	std::optional<EntryInfo> entryOpt = getEntryInfo(srcfilepath);
 	if (!entryOpt) {
-		throw std::runtime_error("Invalid file: " + srcfilepath);
+		return fileNotFound;
 	}
 	EntryInfo entry = *entryOpt;
 	if (isFileExists(dstfilepath)) {
-		throw std::runtime_error("file " + dstfilepath + " already exists");
+		return fileAlreadyExists;
 	}
-	if (dstfilepath == "/" || srcfilepath == "/")  {
-		throw std::runtime_error("root ain't moving, so stop it");
+	if (dstfilepath == "/" || srcfilepath == "/") {
+		return rootIsContant;
 	}
 	if (dstfilepath.find(srcfilepath) == 0 && dstfilepath[srcfilepath.length()] == '/') {
-		throw std::runtime_error("recursive move detected");
+		return infiniteCall;
 	}
 	std::pair<std::string, std::string> dstPathAndName = splitPath(dstfilepath);
 	std::pair<std::string, std::string> srcPathAndName = splitPath(srcfilepath);
 
 	if (entry.type == DIRECTORY_TYPE) {
-		std::vector<std::string> directoryEntries = readDirectoryEntries(entry);
+		std::vector<std::string> directoryEntries;
+		Errors err = readDirectoryEntries(entry, directoryEntries);
+		if (err != OK)
+			return err;
 		for (const std::string& filename : directoryEntries) {
-			try {
-				move(addCurrentDir(filename, srcfilepath), addCurrentDir(filename, dstfilepath));
-			} catch (const std::runtime_error& e) {
-				// Handle exception if needed
+			err = move(addCurrentDir(filename, srcfilepath), addCurrentDir(filename, dstfilepath));
+			if (err != OK) {
+				return err;
 			}
 		}
 	}
-
-	removeFileFromDirectory(srcPathAndName.first, srcPathAndName.second);
+	Errors err = removeFileFromDirectory(srcPathAndName.first, srcPathAndName.second);
+	if (err != OK)
+		return err;
 	entries.erase(entry);
 	totalFatSize -= entry.path.size();
 	entry.path = dstfilepath;
 	totalFatSize += entry.path.size();
 	entries.insert(entry);
-	addFileToDirectory(dstPathAndName.first, dstPathAndName.second);
+	return addFileToDirectory(dstPathAndName.first, dstPathAndName.second);
 }
 
-void MyFs::copy(const std::string& srcfilepath, const std::string& dstfilepath) {
+Errors MyFs::copy(const std::string& srcfilepath, const std::string& dstfilepath) {
 	std::optional<EntryInfo> entryOpt = getEntryInfo(srcfilepath);
 	if (!entryOpt) {
-		throw std::runtime_error("Invalid file: " + srcfilepath);
+		return fileNotFound;
 	}
 	EntryInfo entry = *entryOpt;
 	if (isFileExists(dstfilepath)) {
-		throw std::runtime_error("file " + dstfilepath + " already exists");
+		return fileAlreadyExists;
 	}
 	// Check if destPath starts with srcPath and is immediately followed by a slash or nothing
-	if (srcfilepath == "/")  {
-
-		throw std::runtime_error("copying root will always cause recursive copy.");
-	}
-	if (dstfilepath.find(srcfilepath) == 0 && dstfilepath[srcfilepath.length()] == '/') {
-		throw std::runtime_error("recursive copy detected");
+	if (srcfilepath == "/" || dstfilepath.find(srcfilepath) == 0 && dstfilepath[srcfilepath.length()] == '/') {
+		return infiniteCall;
 	}
 	std::pair<std::string, std::string> dstPathAndName = splitPath(dstfilepath);
 
 	if (entry.type == FILE_TYPE) {
-		EntryInfo dstEntry = createFile(dstfilepath); // Create the new file at dstfilepath and get its EntryInfo
-		std::string content = getContent(entry);
-		setContent(dstEntry, content);
+		EntryInfo dstEntry;
+		Errors err = createFile(dstfilepath, &dstEntry); // Create the new file at dstfilepath and get its EntryInfo
+		if (err != OK)
+			return err;
+
+		std::string content;
+		err = getContent(entry, content);
+		if (err != OK)
+			return err;
+		err = setContent(dstEntry, content);
+		if (err != OK)
+			return err;
 
 	} else if (entry.type == DIRECTORY_TYPE) {
-		createDirectory(dstfilepath); // Create the new directory at dstfilepath
-
-		std::vector<std::string> directoryEntries = readDirectoryEntries(entry);
+		Errors err = createDirectory(dstfilepath, nullptr); // Create the new directory at dstfilepath
+		if (err != OK)
+			return err;
+		std::vector<std::string> directoryEntries;
+		err = readDirectoryEntries(entry, directoryEntries);
+		if (err != OK)
+			return err;
 		for (const std::string& filename : directoryEntries) {
-			try {
-				copy(addCurrentDir(filename, srcfilepath), addCurrentDir(filename, dstfilepath));
-			} catch (const std::runtime_error& e) {
-				// Handle exception if needed
-			}
+
+			Errors err = copy(addCurrentDir(filename, srcfilepath), addCurrentDir(filename, dstfilepath));
+			if (err != OK)
+				return err;
 		}
 	}
+	return OK;
 }
 
 std::pair<std::string, std::string> MyFs::splitPath(const std::string& filepath) {
@@ -523,19 +586,64 @@ std::pair<std::string, std::string> MyFs::splitPath(const std::string& filepath)
 }
 
 std::string MyFs::addCurrentDir(const std::string& filename, const std::string& currentDir) {
+	std::string currDir = currentDir;
+	if (currDir.empty()) {
+		currDir = "/";
+	}
 	if (filename.empty() || filename[0] == '/') {
 		return filename;
 	}
-	if (currentDir.back() == '/') {
+	if (currDir.back() == '/') {
 		if (filename[0] == '/') {
-			return currentDir + filename.substr(1);
+			return currDir + filename.substr(1);
 		}
-		return currentDir + filename;
+		return currDir + filename;
 	}
 	if (filename[0] == '/') {
-		return currentDir + filename;
+		return currDir + filename;
 	}
-	return currentDir + "/" + filename;
+	return currDir + "/" + filename;
+}
+
+const char* MyFs::MyFs::errToString(Errors error) {
+	switch (error) {
+	case OK:
+		return "OK";
+	case fileNotFound:
+		return "File does not exist";
+	case directoryNotFound:
+		return "Directory does not exist";
+	case fileAlreadyExists:
+		return "File already exists";
+	case fileCantExist:
+		return "File cannot exist";
+	case fatPartitionFull:
+		return "FAT partition is full";
+	case maxDirectoryCapacity:
+		return "Maximum directory capacity reached";
+	case invalidType:
+		return "Invalid type for operation";
+	case invalidPath:
+		return "Invalid path";
+	case infiniteCall:
+		return "Infinite call detected";
+	case fileSystemClosed:
+		return "File system is closed";
+	case invalidArguments:
+		return "Invalid arguments";
+	case invalidHeaderMagic:
+		return "Invalid header magic";
+	case invalidHeaderBlockSize:
+		return "Invalid header block size";
+	case invalidHeaderVersion:
+		return "Invalid header version";
+	case maxPathLengthReached:
+		return "Maximum path length reached";
+	case rootIsContant:
+		return "Root cannot be changed";
+	default:
+		return "Unknown error";
+	}
 }
 
 #pragma endregion

@@ -12,22 +12,28 @@
 #define BOLDGREEN "\033[01;32m"
 #define BOLDBLUE "\033[01;34m"
 
-#include "config.hpp"
-#include "myfs.hpp"
-#include "blkdev.hpp"
-#include <iomanip>
-#include <iostream>
-#include <cmath>
+class FileEditor {
+  public:
+	FileEditor(MyFs* filesystem);
+	~FileEditor();
 
-// for the printEntires function
-// makes it look nicer
-#define COLUMN_SPACING 28
+	void run();
 
-std::string addCurrentDirAdvance(const std::string& path, const std::string& currentDir);
-void printHelpMessage();
-std::vector<std::string> splitCmd(const std::string& cmd);
-CommandType getCommandType(const std::string& cmd);
-void editFile(MyFs& myfs, const std::string& fileLocation);
-void printEntries(const std::vector<EntryInfo>& entries);
-bool handleCommand(const std::string& command, std::vector<std::string>& args, MyFs& myfs, std::string& currentDir);
-int main(int argc, char** argv);
+  private:
+	void drawUI();
+	void openFile(const std::string& filepath);
+	void saveFile();
+	void handleKeyboardShortcuts(ImGuiIO& io);
+
+	MyFs* fs;
+	GLFWwindow* window; // Declare window as a member variable
+	std::string currentFilePath;
+	std::string currentFileContent;
+	std::string selectedFilePath;				  // For context menu actions
+	std::optional<std::string> clipboardFilePath; // For copy-paste functionality
+	bool showErrorPopup = false;
+	std::string errorMessage;
+
+	void showError(const std::string& errorMessage);
+	void showError(const Errors& err);
+};

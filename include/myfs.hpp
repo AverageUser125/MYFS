@@ -6,25 +6,35 @@
 #include "EntryInfo.hpp"
 #include "config.hpp"
 #include "allocator.hpp"
-#include <stdexcept>
 #include <set>
 #include <optional>
 #include <numeric>
 #include <functional>
 #include <sstream>
 #include <array>
+#include <iostream>
 
 constexpr int HEADER_SIZE = (sizeof(uint8_t) + sizeof(size_t));
 constexpr int ENTRY_BUFFER_SIZE = (HEADER_SIZE + MAX_PATH + sizeof(size_t) + sizeof(size_t));
 
-struct Errors {
-	enum {
-	fileNotExists,
-	fielCantExist,
+enum Errors {
+	OK,
+	fileNotFound,
+	directoryNotFound,
+	fileAlreadyExists,
+	fileCantExist,
 	fatPartitionFull,
 	maxDirectoryCapacity,
 	invalidType,
-	};
+	invalidPath,
+	infiniteCall,
+	fileSystemClosed,
+	invalidArguments,
+	invalidHeaderMagic,
+	invalidHeaderBlockSize,
+	invalidHeaderVersion,
+	maxPathLengthReached,
+	rootIsContant,
 };
 
 class MyFs {
@@ -32,33 +42,36 @@ class MyFs {
 	explicit MyFs(BlockDeviceSimulator* blkdevsim_);
 	~MyFs();
 
-	void format();
-	void save();
-	void load();
+	[[nodiscard]] Errors format();
+	[[nodiscard]] Errors save();
+	[[nodiscard]] Errors load();
 
 	std::optional<EntryInfo> getEntryInfo(const std::string& fileName);
 
 
 	bool isFileExists(const std::string& filepath);
-	EntryInfo createFile(const std::string& filepath);
-	EntryInfo createDirectory(const std::string& filepath);
 
-	void remove(const std::string& filepath);
-	void move(const std::string& srcfilepath, const std::string& dstfilepath);
-	void copy(const std::string& srcfilepath, const std::string& dstfilepath);
+	[[nodiscard]] Errors MyFs::createFile(const std::string& filepath, EntryInfo* result = nullptr);
+	[[nodiscard]] Errors MyFs::createDirectory(const std::string& filepath, EntryInfo* result = nullptr);
 
-	std::vector<std::string> readDirectoryEntries(const EntryInfo& directoryEntry);
+	[[nodiscard]] Errors remove(const std::string& filepath);
+	[[nodiscard]] Errors MyFs::move(const std::string& srcfilepath, const std::string& dstfilepath);
+	[[nodiscard]] Errors copy(const std::string& srcfilepath, const std::string& dstfilepath);
 
-	std::string getContent(const std::string& filepath);
-	std::string getContent(const EntryInfo& entry);
-	void setContent(const std::string& filepath, const std::string& content);
-	void setContent(EntryInfo entry, const std::string& content);
+	[[nodiscard]] Errors MyFs::readDirectoryEntries(const EntryInfo& directoryEntry,
+													std::vector<std::string>& directoryEntries);
 
-	std::vector<EntryInfo> listDir(const std::string& currentDir);
+	[[nodiscard]] Errors MyFs::getContent(const std::string& filepath, std::string& input);
+	[[nodiscard]] Errors MyFs::getContent(const EntryInfo& filepath, std::string& input);
+	[[nodiscard]] Errors setContent(const std::string& filepath, const std::string& content);
+	[[nodiscard]] Errors setContent(EntryInfo entry, const std::string& content);
+
+	[[nodiscard]] Errors MyFs::listDir(const std::string& currentDir, std::vector<EntryInfo>& result);
 	std::vector<EntryInfo> listTree();
 
 	static std::pair<std::string, std::string> splitPath(const std::string& filepath);
 	static std::string addCurrentDir(const std::string& filename, const std::string& currentDir);
+	static const char* MyFs::errToString(Errors error);
 
   private:
 	struct myfs_header {
@@ -80,12 +93,13 @@ class MyFs {
 	size_t totalFatSize;
 	uint16_t BLOCK_SIZE;
 
-	void removeFileFromDirectory(const std::string& directoryPath, const std::string& filename);
-	void writeDirectoryEntries(const EntryInfo& directoryEntry, const std::vector<std::string>& directoryEntries);
-	void addFileToDirectory(const std::string& directoryPath, const std::string& filename);
+	[[nodiscard]] Errors removeFileFromDirectory(const std::string& directoryPath, const std::string& filename);
+	[[nodiscard]] Errors writeDirectoryEntries(const EntryInfo& directoryEntry,
+											   const std::vector<std::string>& directoryEntries);
+	[[nodiscard]] Errors addFileToDirectory(const std::string& directoryPath, const std::string& filename);
 
-	void addTableEntry(EntryInfo & entryToAdd);
-	void removeTableEntry(EntryInfo & entryToRemove);
-	void reallocateTableEntry(EntryInfo & entryToUpdate, size_t newSize);
-	};
+	[[nodiscard]] Errors addTableEntry(EntryInfo& entryToAdd);
+	[[nodiscard]] Errors removeTableEntry(EntryInfo& entryToRemove);
+	[[nodiscard]] Errors reallocateTableEntry(EntryInfo& entryToUpdate, size_t newSize);
+};
 #endif
