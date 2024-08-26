@@ -6,22 +6,19 @@
 #include <Windows.h>
 #undef DELETE
 
+#include "config.hpp"
+#include "myfs.hpp"
 #include <cassert>
 #include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
-#include "myfs.hpp"
 
 /*** defines ***/
 
-#define KILO_TAB_STOP 8
-#define KILO_QUIT_TIMES 3
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
@@ -128,11 +125,16 @@ int readKey() {
 
 		// Check for available input events
 		if (!GetNumberOfConsoleInputEvents(hStdin, &numEvents) || numEvents == 0) {
+			// check if status message time has passed meanwhile
+			if ((time(NULL) - E.statusmsg_time > STATUS_MESSAGE_TIME)) {
+				editorRefreshScreen();
+			}
 			continue; // No events available, continue waiting
 		}
 
 		// Read input events
 		if (!ReadConsoleInput(hStdin, &ir, 1, &eventsRead)) {
+			editorSetStatusMessage("");
 			continue; // Error reading input, continue waiting
 		}
 
@@ -236,7 +238,14 @@ int enableRawMode() {
 
 void disableRawMode() {
 	// Restore the original console mode
-	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), originalConsoleMode);	
+	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	SetConsoleMode(hConsole, originalConsoleMode);
+
+	CONSOLE_CURSOR_INFO ci;
+	GetConsoleCursorInfo(hConsole, &ci);
+	ci.bVisible = true;
+	SetConsoleCursorInfo(hConsole, &ci);
 }
 
 /*** terminal ***/
@@ -417,7 +426,7 @@ int editorRowCxToRx(erow* row, int cx) {
 	int j;
 	for (j = 0; j < cx; j++) {
 		if (row->chars[j] == '\t')
-			rx += (KILO_TAB_STOP - 1) - (rx % KILO_TAB_STOP);
+			rx += (TAB_SIZE - 1) - (rx % TAB_SIZE);
 		rx++;
 	}
 	return rx;
@@ -428,7 +437,7 @@ int editorRowRxToCx(erow* row, int rx) {
 	int cx;
 	for (cx = 0; cx < row->size; cx++) {
 		if (row->chars[cx] == '\t')
-			cur_rx += (KILO_TAB_STOP - 1) - (cur_rx % KILO_TAB_STOP);
+			cur_rx += (TAB_SIZE - 1) - (cur_rx % TAB_SIZE);
 		cur_rx++;
 
 		if (cur_rx > rx)
@@ -445,13 +454,13 @@ void editorUpdateRow(erow* row) {
 			tabs++;
 
 	free(row->render);
-	row->render = static_cast<char*>(malloc(row->size + tabs * (KILO_TAB_STOP - 1) + 1));
+	row->render = static_cast<char*>(malloc(row->size + tabs * (TAB_SIZE - 1) + 1));
 
 	int idx = 0;
 	for (j = 0; j < row->size; j++) {
 		if (row->chars[j] == '\t') {
 			row->render[idx++] = ' ';
-			while (idx % KILO_TAB_STOP != 0)
+			while (idx % TAB_SIZE != 0)
 				row->render[idx++] = ' ';
 		} else {
 			row->render[idx++] = row->chars[j];
@@ -561,11 +570,18 @@ void editorInsertNewline() {
 }
 
 void editorDelChar() {
-	if (E.cy == E.numrows)
+	if (E.cx == 0 && E.cy == 0) {
+		if (E.numrows == 1 && E.row[0].size == 0) {
+			editorFreeRow(&E.row[0]);
+			E.numrows = 0;
+		}
 		return;
-	if (E.cx == 0 && E.cy == 0)
+	}
+	if (E.cy == E.numrows) {
+		E.cx = E.row[E.cy - 1].size;
+		E.cy--;
 		return;
-
+	}
 	erow* row = &E.row[E.cy];
 	if (E.cx > 0) {
 		editorRowDelChar(row, E.cx - 1);
@@ -612,8 +628,8 @@ std::string editorRowsToString() {
 	if (!myfs.isFileExists(MyFs::splitPath(filename).first)) {
 		return 1;
 	}
-
 	E.filename = strdup(filename.data());
+	editorSelectSyntaxHighlight();
 	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(filename);
 	if (!entryOpt) {
 		// do it this way an not isFileExists to get the file entry and therefore the file size
@@ -643,7 +659,6 @@ std::string editorRowsToString() {
 		}
 		editorInsertRow(E.numrows, line.data(), line.length());
 	}
-
 	E.dirty = false;
 	return 0;
 }
@@ -677,7 +692,12 @@ int editorSave(MyFs& myfs) {
 	std::optional<EntryInfo> entryOpt = myfs.getEntryInfo(E.filename);
 	EntryInfo entry;
 	if (!entryOpt) {
+		try {
 		entry = myfs.createFile(E.filename);
+		} catch (const std::exception& e) {
+			editorSetStatusMessage("Can't save! I/O error: %s", e.what());
+			return 1;
+		}
 	} else {
 		entry = *entryOpt;
 	}
@@ -816,27 +836,33 @@ void editorScroll() {
 	}
 }
 
+void welcomeMessage(abuf* ab, int y) {
+    if (E.numrows != 0 || y != E.screenrows / 3) {
+        abAppend(ab, "~", 1);
+        return;
+    }
+
+    int welcomelen = strlen(WELCOME_MESSAGE);
+    if (welcomelen > E.screencols)
+        welcomelen = E.screencols;
+
+    int padding = (E.screencols - welcomelen) / 2;
+    if (padding) {
+        abAppend(ab, "~", 1);
+        padding--;
+    }
+    while (padding--)
+        abAppend(ab, " ", 1);
+
+    abAppend(ab, WELCOME_MESSAGE, welcomelen);
+}
+
 void editorDrawRows(struct abuf* ab) {
 	int y;
 	for (y = 0; y < E.screenrows - 2; y++) {
 		int filerow = y + E.rowoff;
 		if (filerow >= E.numrows) {
-			if (E.numrows == 0 && y == E.screenrows / 3) {
-				char welcome[80];
-				int welcomelen = snprintf(welcome, sizeof(welcome), "Kilo editor -- version %s", KILO_VERSION);
-				if (welcomelen > E.screencols)
-					welcomelen = E.screencols;
-				int padding = (E.screencols - welcomelen) / 2;
-				if (padding) {
-					abAppend(ab, "~", 1);
-					padding--;
-				}
-				while (padding--)
-					abAppend(ab, " ", 1);
-				abAppend(ab, welcome, welcomelen);
-			} else {
-				abAppend(ab, "~", 1);
-			}
+			welcomeMessage(ab, y);
 		} else {
 			int len = E.row[filerow].rsize - E.coloff;
 			if (len < 0)
@@ -911,7 +937,7 @@ void editorDrawMessageBar(struct abuf* ab) {
 	int msglen = strlen(E.statusmsg);
 	if (msglen > E.screencols)
 		msglen = E.screencols;
-	if (msglen && time(NULL) - E.statusmsg_time < 5)
+	if (msglen && time(NULL) - E.statusmsg_time < STATUS_MESSAGE_TIME)
 		abAppend(ab, E.statusmsg, msglen);
 }
 
@@ -1170,14 +1196,23 @@ void editorStart(MyFs& myfs, const std::string& filenameIn) {
 
 
 	editorRefreshScreen();
-	while (true) {
+	try {
+		while (true) {
 
-		int key = readKey();
-		if (editorProcessKeypress(myfs, key)) {
-			break;
+			int key = readKey();
+			if (editorProcessKeypress(myfs, key)) {
+				break;
+			}
+			editorRefreshScreen();
 		}
-		editorRefreshScreen();
+	} catch (...) {
 	}
+	for (int i = 0; i < E.numrows; i++) {
+		editorFreeRow(&E.row[i]);
+	}
+	if (E.filename)
+		free(E.filename);
+
 	disableRawMode();
 	system("cls");
 }
