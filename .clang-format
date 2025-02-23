@@ -29,7 +29,7 @@ SpaceAfterTemplateKeyword: true
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeCtorInitializerColon: true
 SpaceBeforeInheritanceColon: true
+AlwaysBreakTemplateDeclarations: true
 SpaceBeforeParens: ControlStatementsExceptForEachMacros
 SpaceBeforeRangeBasedForLoopColon: true
 SeparateDefinitionBlocks: Always
-QualifierAlignment: Left

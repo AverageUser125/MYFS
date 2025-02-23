@@ -1,32 +1,35 @@
-## Table of Contents
+# Todos
+- [ ] Make ReadInodeData and WriteInodeData not require allocating all the file data to RAM
+- [ ] Add support for indirect, doubly-indirect and triply-indirect block pointers
+- [ ] FIX THE FORMAT FUNCTION
+- [ ] Make splitPath more sophisticated
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Credits](#credits)
+# Todo Later
+- [ ] Set deletion time and maybe clear the inode on delete
+- [ ] Support directorys bigger than the block size
+- [ ] Make and use backups of the super block and group descriptor tables
+- [ ] The bitmap allocator should try to find blocks near the current block to improve locality (expanding file size), perhaps create a function to allocate many blocks also
+- [ ] Make full use of 256 bits inodes by storing the high of many things, such as time_t
+- [ ] Add UID, GID to API
+- [ ] Make the "ls" command somehow use only external API
+- [ ] Fully support multiple group descriptor tables to support bigger devices
 
+# To consider
+- [ ] Add a VFS system to improve the file system API
+- [ ] Add cache
+- [ ] Make functions return errno instead of setting it
+- [ ] Out of storage panic
+- [ ] Checksums, everywhere
+- [ ] Maybe set the access time of read
+- [ ] The editor putting new line at the end of the file
+- [ ] Store small files directly in the i_block of the inode (less than 60 bytes), idk if only in 256 bits inode or only in EXT3
 
-## Installation
+# Sources
+- https://github.com/tsoding/arena
+- https://github.com/SoSlow/Ext2/blob/master/Ext2/
+- https://www.nongnu.org/ext2-doc/ext2.html
 
-To install this project, clone the repository to your local machine using the following command:
-
-```console
-$ git clone https://github.com/AverageUser125/MYFS.git
-```
-
-
-## Usage
-After successfully installing the repository, open a command line, navigate to the project's folder and type the following commands:
-
-```console
-$ ./build.sh
-$ ./myfs test
-```
-
-The usage of this project follows a similar convention to working with commands in a Linux environment, making it intuitive for users familiar with Linux systems. 
-Additionally, a custom 'help' command is available to provide further assistance and guidance.
-
-## Credits
-- https://viewsourcecode.org/snaptoken/kilo/01.setup.html
-- https://github.com/antirez/kilo
-- https://gitlab.com/magshimim0/archi/file-system
-- https://stackoverflow.com/questions/32719523/unix-path-resolution-in-c
+# License
+Do whatever you want, no need to give me any credit, you can relicese and whatever you want.
+Just know that I am not responsible for any damages this may cause. and I will not give an warranty for this.
+just notice that the sources that this project uses/used have there own licenses which you need to follow.
