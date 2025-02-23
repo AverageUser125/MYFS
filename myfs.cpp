@@ -320,7 +320,6 @@ bool MyFs::ls(const std::string& dirPath) {
 	return true;
 }
 
-
 bool MyFs::getDirectoryContents(const std::string& dirPath, std::vector<std::string>& filenames) {
 	filenames.clear();
 
@@ -381,7 +380,7 @@ void MyFs::setBit(uint32_t bitmap_block, uint32_t bitIn, bool state) {
 	char* bitmap = (char*)arena_alloc(&global_arena, BLOCK_SIZE);
 	defer(arena_reset(&global_arena));
 	device.read(bitmap_block * BLOCK_SIZE, BLOCK_SIZE, bitmap);
-	uint16_t bit = (uint16_t)(bitIn) - 1;
+	uint16_t bit = (uint16_t)(bitIn)-1;
 
 	if (state) {
 		uint8_t mask = (uint8_t)((1 << (bit % 8)));
@@ -611,7 +610,7 @@ bool MyFs::readSuperBlock(Ext2SuperBlock& super) {
 
 void MyFs::readGroupDescriptorTable(Ext2GroupDescriptor*& GrpDscrTbls) {
 	delete GrpDscrTbls;
-	
+
 	gd_count = SuperBlock.s_blocks_count / SuperBlock.s_blocks_per_group + 1;
 	GrpDscrTbls = new Ext2GroupDescriptor[gd_count];
 

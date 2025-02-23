@@ -391,7 +391,6 @@ int editorReadKey() {
 		return '\x1b';
 	}
 	return c;
-	
 }
 
 int getCursorPosition(int* rows, int* cols) {
@@ -470,9 +469,9 @@ void editorUpdateSyntax(erow* row) {
 					in_comment = false;
 					prev_sep = 1;
 					continue;
-				} 
+				}
 				i++;
-				
+
 			} else if (!strncmp(&row->render[i], mcs, mcs_len)) {
 				memset(&row->hl[i], HL_MLCOMMENT, mcs_len);
 				i += mcs_len;
@@ -761,7 +760,7 @@ void editorDelChar() {
 		return;
 	}
 	if (E.cx == 0 && E.cy == 0) {
-		if(E.numrows == 1 && E.row->size == 0) {
+		if (E.numrows == 1 && E.row->size == 0) {
 			editorDelRow(0);
 		}
 		return;
@@ -804,7 +803,6 @@ char* editorRowsToString(int* buflen) {
 	}
 	return buf;
 }
-
 
 bool editorOpen(const char* filename) {
 	free(E.filename);
@@ -1135,7 +1133,6 @@ void editorSetStatusMessage(const char* fmt, ...) {
 	va_end(ap);
 	E.statusmsg_time = time(nullptr);
 }
-
 
 /*** input ***/
 char* editorPrompt(const char* prompt, void (*callback)(char*, int)) {

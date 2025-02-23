@@ -55,7 +55,7 @@ void free_region(Region* r) {
 Region* new_region(size_t capacity) {
 	SIZE_T size_bytes = sizeof(Region) + sizeof(uintptr_t) * capacity;
 	Region* r = (Region*)VirtualAllocEx(GetCurrentProcess(),	  /* Allocate in current process address space */
-										nullptr,					  /* Unknown position */
+										nullptr,				  /* Unknown position */
 										size_bytes,				  /* Bytes to allocate */
 										MEM_COMMIT | MEM_RESERVE, /* Reserve and commit allocated page */
 										PAGE_READWRITE			  /* Permissions ( Read/Write )*/

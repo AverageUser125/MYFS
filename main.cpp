@@ -179,14 +179,13 @@ void printTree(const std::string& dir, MyFs& myfs, int depth = 0) {
 			fullPath.reserve(dir.size() + entry.size() + 2);
 			fullPath = dir;
 			fullPath += "/";
-			fullPath += entry;	
+			fullPath += entry;
 		}
 		printTree(fullPath, myfs, depth + 1);
 	}
 }
 
-bool handleCommand(const std::string& command, std::vector<std::string>& args, MyFs& myfs,
-						  std::string& currentDir) {
+bool handleCommand(const std::string& command, std::vector<std::string>& args, MyFs& myfs, std::string& currentDir) {
 
 	CommandType commandType = getCommandType(command);
 
@@ -313,7 +312,7 @@ int realMain(int argc, char** argv) {
 	std::string bldevfile;
 	if (argc == 1) {
 #ifdef _WIN32
-	bldevfile = R"(C:\Users\Cyber_User\Documents\magshimim\Year2\Architectury\W14\file.bin)";
+		bldevfile = R"(C:\Users\Cyber_User\Documents\magshimim\Year2\Architectury\W14\file.bin)";
 #else
 		bldevfile = "/home/user/architecture/W14/file.bin";
 #endif
@@ -374,6 +373,6 @@ int main(int argc, char** argv) {
 		return 1;
 	} catch (...) {
 		std::cerr << "Unknown error type\n";
-		return 1;	
+		return 1;
 	}
 }

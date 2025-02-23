@@ -17,9 +17,9 @@ class WindowsCategory : public std::error_category {
 
 	std::string message(int errorCode) const override {
 		char* msgBuffer = nullptr;
-		size_t size =
-			FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-						   nullptr, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&msgBuffer, 0, nullptr);
+		size_t size = FormatMessageA(
+			FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr,
+			errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&msgBuffer, 0, nullptr);
 		std::string message(msgBuffer, size);
 		LocalFree(msgBuffer);
 		return message;
@@ -81,6 +81,7 @@ BlockDeviceSimulator::~BlockDeviceSimulator() {
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
 class ErrnoCategory : public std::error_category {
   public:
 	const char* name() const noexcept override {

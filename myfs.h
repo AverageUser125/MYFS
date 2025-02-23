@@ -63,7 +63,7 @@ PACK(typedef struct {
 	uint16_t s_def_resgid;	  /* Default gid for reserved blocks */
 	uint32_t s_first_inode;	  /* First inode */
 	uint32_t s_inode_size;	  /* Inodes size */
-	// uint8_t s_reserved[932];  /* Padding to the end of the block */
+							  // uint8_t s_reserved[932];  /* Padding to the end of the block */
 })
 Ext2SuperBlock;
 
@@ -108,11 +108,11 @@ PACK(typedef struct {
 		} masix1;
 	} osd1; /* OS dependent 1 */
 
-	uint32_t i_block[EXT2_N_BLOCKS];				 /* Pointers to blocks */
-	uint32_t i_version;								 /* File version (for NFS) */
-	uint32_t i_file_acl;							 /* File ACL */
-	uint32_t i_dir_acl;								 /* Directory ACL */
-	uint32_t i_faddr;								 /* Fragment address */
+	uint32_t i_block[EXT2_N_BLOCKS]; /* Pointers to blocks */
+	uint32_t i_version;				 /* File version (for NFS) */
+	uint32_t i_file_acl;			 /* File ACL */
+	uint32_t i_dir_acl;				 /* Directory ACL */
+	uint32_t i_faddr;				 /* Fragment address */
 
 	union {
 		struct {
@@ -168,6 +168,7 @@ class MyFs {
 	bool setContent(const std::string& filepath, const std::string& content);
 	bool ls(const std::string& dirPath);
 	bool getDirectoryContents(const std::string& dirPath, std::vector<std::string>& filenames);
+
   private:
 	Ext2SuperBlock SuperBlock;
 	BlockDeviceSimulator device;
