@@ -425,6 +425,7 @@ void MyFs::sync() {
 }
 
 void MyFs::format() {
+	assert(0 && "TODO/FIXME");
 	BLOCK_SIZE = 1024;
 
 	SuperBlock.s_inodes_count = device.DEVICE_SIZE / (BLOCK_SIZE * 8);
@@ -445,7 +446,7 @@ void MyFs::format() {
 	SuperBlock.s_magic = EXT2_SUPER_MAGIC;
 	SuperBlock.s_state = 1;
 	SuperBlock.s_errors = 1;
-	SuperBlock.s_lastcheck = 0;
+	SuperBlock.s_lastcheck = (uint32_t)time(nullptr);
 	SuperBlock.s_checkinterval = 0;
 	SuperBlock.s_creator_os = 0;
 	SuperBlock.s_rev_level = 0;
