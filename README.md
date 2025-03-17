@@ -1,8 +1,14 @@
+# MYFS
+1. This is a pet project to learn how file systems work.
+2. This is an implementation of a subset of EXT2 features.
+3. This program should work on both Windows and Linux.
+
 # Todos
 - [ ] Make ReadInodeData and WriteInodeData not require allocating all the file data to RAM
 - [ ] Add support for indirect, doubly-indirect and triply-indirect block pointers
-- [ ] FIX THE FORMAT FUNCTION
+- [x] FIX THE FORMAT FUNCTION
 - [ ] Make splitPath more sophisticated
+- [ ] Add fail safes to moveFile failing
 
 # Todo Later
 - [ ] Set deletion time and maybe clear the inode on delete
@@ -11,7 +17,7 @@
 - [ ] The bitmap allocator should try to find blocks near the current block to improve locality (expanding file size), perhaps create a function to allocate many blocks also
 - [ ] Make full use of 256 bits inodes by storing the high of many things, such as time_t
 - [ ] Add UID, GID to API
-- [ ] Make the "ls" command somehow use only external API
+- [x] Make the "ls" command somehow use only external API
 - [ ] Fully support multiple group descriptor tables to support bigger devices
 
 # To consider

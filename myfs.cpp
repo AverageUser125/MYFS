@@ -537,7 +537,7 @@ void MyFs::sync() {
 }
 
 void MyFs::format() {
-	assert(0 && "TODO/FIXME");
+	defer(arena_reset(&global_arena));
 	BLOCK_SIZE = 1024;
 
 	SuperBlock.s_inodes_count = device.DEVICE_SIZE / (BLOCK_SIZE * 8);
@@ -547,6 +547,17 @@ void MyFs::format() {
 	SuperBlock.s_free_inodes_count = SuperBlock.s_inodes_count - 1;
 	SuperBlock.s_first_data_block = 1;
 	SuperBlock.s_log_block_size = 0;
+	{
+		// counts number of trailing zeros to reverse:
+		// BLOCK_SIZE = 1024 << super.s_log_block_size;
+		// TOCONSIDER: switch to C++20 
+		// super.s_log_block_size = std::countr_zero(BLOCK_SIZE / 1024);
+		int size = BLOCK_SIZE / 1024;
+		while (size > 1) {
+			size >>= 1;
+			SuperBlock.s_log_block_size++;
+		}
+	}
 	SuperBlock.s_log_frag_size = 0;
 	SuperBlock.s_blocks_per_group = SuperBlock.s_blocks_count;
 	SuperBlock.s_frags_per_group = SuperBlock.s_blocks_count;
@@ -578,7 +589,7 @@ void MyFs::format() {
 	sync();
 
 	char* inode_bitmap = (char*)arena_alloc(&global_arena, BLOCK_SIZE);
-	*inode_bitmap = 0x1;
+	*inode_bitmap = 0x3; // reserve node 0(not existing),1(broken blocks),2(root)
 	device.write(BLOCK_SIZE * GrpDscrTbl->bg_inode_bitmap, BLOCK_SIZE, inode_bitmap);
 
 	// Initialize block bitmap (reserve blocks 0-4 + inode table)
@@ -591,14 +602,10 @@ void MyFs::format() {
 
 	device.write(BLOCK_SIZE * GrpDscrTbl->bg_block_bitmap, BLOCK_SIZE, block_bitmap);
 
-	uint32_t root_inode_num = 0;
 	uint32_t root_data_block = 0;
-	allocateInodeAndBlock(root_inode_num, root_data_block);
+	allocateBlock(root_data_block);
 	Ext2Inode new_inode = {};
-	new_inode.i_mode = INODE_TYPE_DIRECTORY;
-	new_inode.i_flags = 0644;
-	new_inode.i_uid = 1000;
-	new_inode.i_gid = 1000;
+	new_inode.i_mode = INODE_TYPE_DIRECTORY | 0644;
 	new_inode.i_ctime = (uint32_t)time(nullptr);
 	new_inode.i_atime = new_inode.i_ctime;
 	new_inode.i_mtime = new_inode.i_ctime;
@@ -606,7 +613,7 @@ void MyFs::format() {
 	new_inode.i_blocks = (BLOCK_SIZE / 512);
 	new_inode.i_block[0] = root_data_block;
 	initDirEntry(new_inode, EXT2_ROOT_INO, EXT2_ROOT_INO);
-	arena_reset(&global_arena);
+	writeInodeStruct(EXT2_ROOT_INO, new_inode);
 }
 
 uint32_t MyFs::getInodeAddress(uint32_t inode_num) {
