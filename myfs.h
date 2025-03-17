@@ -156,6 +156,16 @@ class MyFs {
 	explicit MyFs(BlockDeviceSimulator&& device);
 	~MyFs();
 
+	struct FileInfo {
+		std::string permissions;
+		uint16_t linkCount;
+		uint32_t inode;
+		uint32_t size;
+		uint32_t uid;
+		uint32_t gid;
+		time_t modificationTime;
+		std::string name;
+	};
 	void sync();
 	void format();
 	static void rightsToString(uint16_t rights, char buf[9]);
@@ -166,7 +176,7 @@ class MyFs {
 	bool deleteDirectory(const std::string& filepath);
 	bool getContent(const std::string& filepath, std::string& content);
 	bool setContent(const std::string& filepath, const std::string& content);
-	bool ls(const std::string& dirPath);
+	bool getDirectoryInfo(const std::string& dirPath, std::vector<FileInfo>& files);
 	bool getDirectoryContents(const std::string& dirPath, std::vector<std::string>& filenames);
 
   private:

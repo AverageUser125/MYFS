@@ -8,6 +8,7 @@
 #include <ios>
 #include <sstream>
 #include <fstream>
+#include <stdio.h>
 #include <map>
 #include "editor.h"
 #include <cerrno>
@@ -185,6 +186,22 @@ void printTree(const std::string& dir, MyFs& myfs, int depth = 0) {
 	}
 }
 
+void printDirectoryInfo(const std::vector<MyFs::FileInfo>& files, const std::string& dirPath) {
+	printf("\n\n\t\tFolder: %s\n\n\n", dirPath.c_str());
+	printf("%10s%4s%8s%6s%6s%10s%28s  %s\n", "Rsights", "Lc", "Inode", "UID", "GID", "Size", "Modification time",
+		   "Name");
+	printf("%10s%4s%8s%6s%6s%10s%28s  %s\n", "======", "==", "====", "===", "===", "====", "=================", "====");
+
+	for (const auto& file : files) {
+		char* time = ctime(&file.modificationTime);
+		if (time != nullptr)
+			time[strlen(time) - 1] = '\0';
+
+		printf("%10s%4hu%8u%6u%6u%10u%28s  %s\n", file.permissions.c_str(), file.linkCount, file.inode, file.uid,
+			   file.gid, file.size, time ? time : "-", file.name.c_str());
+	}
+}
+
 bool handleCommand(const std::string& command, std::vector<std::string>& args, MyFs& myfs, std::string& currentDir) {
 
 	CommandType commandType = getCommandType(command);
@@ -223,16 +240,13 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 		break;
 	}
 	case CommandType::LIST: {
-		if (args.empty()) {
-			if (!myfs.ls(currentDir)) {
-				std::cerr << "ERROR [" << currentDir << "]: " << strerror(errno) << '\n';
-			}
-		} else if (args.size() == 1) {
-			if (!myfs.ls(args[0])) {
-				std::cerr << "ERROR [" << args[0] << "]: " << strerror(errno) << '\n';
-			}
+		std::vector<MyFs::FileInfo> files;
+		const std::string& path = args.empty() ? currentDir : args[0];
+
+		if (!myfs.getDirectoryInfo(path, files)) {
+			std::cerr << "ERROR [" << path << "]: " << strerror(errno) << '\n';
 		} else {
-			throw std::runtime_error(LIST_CMD " needs only 0 or 1 argument");
+			printDirectoryInfo(files, path);
 		}
 		break;
 	}

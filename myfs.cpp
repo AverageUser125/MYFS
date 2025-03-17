@@ -1,6 +1,5 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "myfs.h"
-#include <cstring>
 #include <cerrno>
 #include <stdexcept>
 #include <iostream>
@@ -272,12 +271,11 @@ bool MyFs::setContent(const std::string& filepath, const std::string& content) {
 	return writeInodeData(file_inode, inode, content.c_str(), (uint32_t)content.size());
 }
 
-bool MyFs::ls(const std::string& dirPath) {
+bool MyFs::getDirectoryInfo(const std::string& dirPath, std::vector<FileInfo>& files) {
+	files.clear();
 	uint32_t dir_inode = getDirInodeByName(dirPath.c_str());
-	if (dir_inode == 0) {
-		fprintf(stderr, "Error. Directory \"%s\" not found.\n", dirPath.c_str());
+	if (dir_inode == 0)
 		return false;
-	}
 
 	char* data = nullptr;
 	Ext2DirEntry* direntry = nullptr;
@@ -286,12 +284,9 @@ bool MyFs::ls(const std::string& dirPath) {
 	readInodeData(dir_inode, data, size);
 	if (data == nullptr)
 		return false;
-	direntry = (Ext2DirEntry*)data;
+	defer(delete[] data);
 
-	printf("\n\n\t\tFolder: %s\n\n\n", dirPath.c_str());
-	printf("%10s%3s%10s%16s%28s  %s\n", "Rsights", "Lc", "Inode", "Size", "Modification time", "Name");
-	printf("%10s%3s%10s%16s%28s  %s\n", "======", "==", "=====", "====", "=================", "====");
-	printf("\n");
+	direntry = (Ext2DirEntry*)data;
 	while (direntry->name_len > 0) {
 		char fname[255]{};
 		Ext2Inode inode;
@@ -301,22 +296,23 @@ bool MyFs::ls(const std::string& dirPath) {
 
 		readInodeStruct(direntry->inode, inode);
 
-		time_t timeVal = (time_t)inode.i_mtime;
-		char* time = ctime(&timeVal);
-		if (time != nullptr)
-			time[strlen(time) - 1] = '\0';
+		FileInfo info{};
+		rightsToString(inode.i_mode, info.permissions.data());
+		info.linkCount = inode.i_links_count;
+		info.inode = direntry->inode;
+		info.size = inode.i_size;
+		info.uid = inode.i_uid;
+		info.gid = inode.i_gid;
+		info.modificationTime = inode.i_mtime;
+		info.name = fname;
 
-		char rights[12]{};
-		rightsToString(inode.i_mode, rights);
-
-		printf("%10s%3hu%10u%16u%28s  %s\n", rights, inode.i_links_count, direntry->inode, inode.i_size, time, fname);
+		files.push_back(std::move(info));
 
 		if ((char*)direntry - data + direntry->rec_len >= size)
 			break;
 		direntry = (Ext2DirEntry*)((char*)direntry + direntry->rec_len);
 	}
 
-	delete[] data;
 	return true;
 }
 
