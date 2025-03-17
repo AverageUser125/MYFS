@@ -306,11 +306,21 @@ bool handleCommand(const std::string& command, std::vector<std::string>& args, M
 	case CommandType::FORMAT: {
 		myfs.format();
 		break;
-	}case CommandType::COPY: {
+	}
+	case CommandType::COPY: {
 		if (args.size() != 2) {
 			throw std::runtime_error(COPY_CMD " needs exactly 2 arguments");
 		}
 		if (!myfs.copyFile(args[0], args[1])) {
+			std::cerr << "ERROR " << strerror(errno) << '\n';
+		}
+		break;
+	}
+	case CommandType::MOVE: {
+		if (args.size() != 2) {
+			throw std::runtime_error(MOVE_CMD " needs exactly 2 arguments");
+		}
+		if (!myfs.moveFile(args[0], args[1])) {
 			std::cerr << "ERROR " << strerror(errno) << '\n';
 		}
 		break;

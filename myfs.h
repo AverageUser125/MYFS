@@ -179,6 +179,7 @@ class MyFs {
 	bool getDirectoryInfo(const std::string& dirPath, std::vector<FileInfo>& files);
 	bool getDirectoryContents(const std::string& dirPath, std::vector<std::string>& filenames);
 	bool copyFile(const std::string& srcFile, const std::string& dstFile);
+	bool moveFile(const std::string& srcFile, const std::string& dstFile);
 
   private:
 	Ext2SuperBlock SuperBlock;

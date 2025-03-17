@@ -362,7 +362,6 @@ bool MyFs::copyFile(const std::string& srcFile, const std::string& dstFile) {
 		return false;
 	}
 
-	// Add directory entry
 	char dst_dir_path[256]{}, dst_filename[256]{};
 	splitPath(dstFile.c_str(), dst_dir_path, dst_filename);
 	uint32_t dst_dir_inode = getDirInodeByName(dst_dir_path);
@@ -390,6 +389,7 @@ bool MyFs::copyFile(const std::string& srcFile, const std::string& dstFile) {
 	{
 		Ext2Inode dirInode{};
 		readInodeStruct(dst_dir_inode, dirInode);
+		// TODO: not use EXT2_FT_REG_FILE
 		if (!addDirectoryEntry(dst_dir_inode, dst_file_inode, dirInode, dst_filename, EXT2_FT_REG_FILE)) {
 			deallocateInode(dst_file_inode);
 			return false;
@@ -421,6 +421,50 @@ bool MyFs::copyFile(const std::string& srcFile, const std::string& dstFile) {
 	defer(delete[] srcData);
 
 	writeInodeData(dst_file_inode, srcData, srcSize);
+
+	return true;
+}
+
+bool MyFs::moveFile(const std::string& srcFile, const std::string& dstFile) {
+	char src_dir_path[256]{}, src_filename[256]{};
+	splitPath(srcFile.c_str(), src_dir_path, src_filename);
+	uint32_t src_dir_inode = getDirInodeByName(src_dir_path);
+	if (src_dir_inode == 0) {
+		errno = ENOENT;
+		return false;
+	}
+
+	char dst_dir_path[256]{}, dst_filename[256]{};
+	splitPath(dstFile.c_str(), dst_dir_path, dst_filename);
+	uint32_t dst_dir_inode = getDirInodeByName(dst_dir_path);
+	if (dst_dir_inode == 0) {
+		errno = ENOENT;
+		return false;
+	}
+	{
+		uint32_t dstFileInode = getSubdirInode(dst_dir_inode, dst_filename);
+		if (dstFileInode != 0) {
+			errno = EEXIST;
+			return false;
+		}
+	}
+
+	uint32_t src_inode_num = getFileInode(src_dir_inode, src_filename);
+	if (src_dir_inode == 0) {
+		errno = ENOENT;
+		return false;
+	}
+	uint32_t dst_file_inode = 0;
+	Ext2Inode src_dirInode{};
+	readInodeStruct(src_dir_inode, src_dirInode);
+	bool result = removeDirEntry(src_dirInode, src_inode_num);
+	assert(result && "TODO: move failure");
+
+	Ext2Inode dst_dirInode{};
+	readInodeStruct(dst_dir_inode, dst_dirInode);
+	// TODO: EXT2_FT_REG_FILE
+	result = addDirectoryEntry(dst_dir_inode, src_inode_num, dst_dirInode, dst_filename, EXT2_FT_REG_FILE);
+	assert(result && "TODO: move failure");
 
 	return true;
 }
