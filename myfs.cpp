@@ -353,6 +353,78 @@ bool MyFs::getDirectoryContents(const std::string& dirPath, std::vector<std::str
 	return true; // Success
 }
 
+bool MyFs::copyFile(const std::string& srcFile, const std::string& dstFile) {
+	char src_dir_path[256]{}, src_filename[256]{};
+	splitPath(srcFile.c_str(), src_dir_path, src_filename);
+	uint32_t src_dir_inode = getDirInodeByName(src_dir_path);
+	if (src_dir_inode == 0) {
+		errno = ENOENT;
+		return false;
+	}
+
+	// Add directory entry
+	char dst_dir_path[256]{}, dst_filename[256]{};
+	splitPath(dstFile.c_str(), dst_dir_path, dst_filename);
+	uint32_t dst_dir_inode = getDirInodeByName(dst_dir_path);
+	if (dst_dir_inode == 0) {
+		errno = ENOENT;
+		return false;
+	}
+	{
+		uint32_t dstFileInode = getSubdirInode(dst_dir_inode, dst_filename);
+		if (dstFileInode != 0) {
+			errno = EEXIST;
+			return false;
+		}
+	}
+
+	uint32_t src_inode_num = getFileInode(src_dir_inode, src_filename);
+	if (src_dir_inode == 0) {
+		errno = ENOENT;
+		return false;
+	}
+	uint32_t dst_file_inode = 0;
+	if(!allocateInode(dst_file_inode)) {
+		return false;
+	}
+	{
+		Ext2Inode dirInode{};
+		readInodeStruct(dst_dir_inode, dirInode);
+		if (!addDirectoryEntry(dst_dir_inode, dst_file_inode, dirInode, dst_filename, EXT2_FT_REG_FILE)) {
+			deallocateInode(dst_file_inode);
+			return false;
+		}
+	}
+
+	Ext2Inode srcInode{};
+	readInodeStruct(src_inode_num, srcInode);
+	for (int i = 0; i < EXT2_DIRECT_BLOCKS; i++) {
+		if (srcInode.i_block[i] == 0) {
+			break;
+		}
+		if (!allocateBlock(srcInode.i_block[i])) {
+			while (i >= 0) {
+				deallocateBlock(srcInode.i_block[i]);
+			}
+			deallocateInode(src_inode_num);
+			return false;
+		}
+	}
+	srcInode.i_ctime = (uint32_t)time(nullptr);
+	srcInode.i_atime = srcInode.i_ctime;
+	srcInode.i_mtime = srcInode.i_ctime;
+
+	writeInodeStruct(dst_file_inode, srcInode);
+	char* srcData = nullptr;
+	uint32_t srcSize = 0;
+	readInodeData(src_inode_num, srcData, srcSize);
+	defer(delete[] srcData);
+
+	writeInodeData(dst_file_inode, srcData, srcSize);
+
+	return true;
+}
+
 #pragma region bitmap
 
 uint32_t MyFs::findFreeBit(uint32_t bitmap_block, uint32_t max_bits) {
