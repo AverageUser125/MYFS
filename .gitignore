@@ -19,7 +19,6 @@ Makefile
 *.code-workspace
 
 # other
-output.txt
-output2.txt
-log.txt
-DebugWorkshop/
+*.txt
+*.bin
+*.img

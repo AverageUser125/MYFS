@@ -649,22 +649,25 @@ void editorInsertRow(int at, const char* s, size_t len) {
 	if (at < 0 || at > E.numrows)
 		return;
 
-	E.row = (erow*)realloc(E.row, sizeof(erow) * (E.numrows + 1));
-	assert(E.row != nullptr);
+	erow* newRows = (erow*)malloc(sizeof(erow) * (E.numrows + 1));
+	assert(newRows != nullptr);
 
-	// Move existing rows down
-	if (at < E.numrows) // Only shift if inserting in the middle
-		memmove(&E.row[at + 1], &E.row[at], sizeof(erow) * (E.numrows - at));
+	if (E.numrows > 0) {
+		memcpy(newRows, E.row, sizeof(erow) * at);
+		memcpy(newRows + at + 1, E.row + at, sizeof(erow) * (E.numrows - at));
+		free(E.row);
+	}
 
-	// Fix loop bounds to prevent out-of-bounds writes
+	E.row = newRows;
+
 	for (int j = E.numrows; j > at; j--)
 		E.row[j].idx = E.row[j - 1].idx + 1;
 
 	E.row[at].idx = at;
-
-	E.row[at].size = (int)(len);
+	E.row[at].size = static_cast<int>(len);
 	E.row[at].chars = (char*)malloc(len + 1);
 	assert(E.row[at].chars != nullptr);
+
 	memcpy(E.row[at].chars, s, len);
 	E.row[at].chars[len] = '\0';
 
@@ -672,9 +675,10 @@ void editorInsertRow(int at, const char* s, size_t len) {
 	E.row[at].render = nullptr;
 	E.row[at].hl = nullptr;
 	E.row[at].hl_open_comment = false;
+
 	editorUpdateRow(&E.row[at]);
 
-	E.numrows++; // Increment only after everything is initialized
+	E.numrows++;
 	E.dirty = true;
 }
 
@@ -794,12 +798,6 @@ char* editorRowsToString(int* buflen) {
 		p += E.row[j].size;
 		*p = '\n';
 		p++;
-	}
-	// FIXME: not new line at end of file, should I really do this?
-	if (E.numrows > 0) {
-		if (E.row[j].size > 0) {
-			E.row[j].size--;
-		}
 	}
 	return buf;
 }

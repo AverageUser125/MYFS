@@ -219,7 +219,7 @@ void printDirectoryInfo(const std::vector<MyFs::FileInfo>& files, const std::str
 		if (modifTime != nullptr)
 			modifTime[strlen(modifTime) - 1] = '\0';
 
-		char modeStr[9] = {0};
+		char modeStr[11] = {0};
 		rightsToString(file.mode, modeStr);
 		printf("%10s%4hu%8u%6u%6u%10u%28s  %s\n", modeStr, file.linkCount, file.inode, file.uid, file.gid, file.size,
 			   modifTime ? modifTime : "-", file.name.c_str());

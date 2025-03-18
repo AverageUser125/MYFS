@@ -405,13 +405,15 @@ bool MyFs::copyFile(const std::string& srcFile, const std::string& dstFile) {
 		if (srcInode.i_block[i] == 0) {
 			break;
 		}
-		if (!allocateBlock(srcInode.i_block[i])) {
+		uint32_t newBlock = 0;
+		if (!allocateBlock(newBlock)) {
 			while (i >= 0) {
 				deallocateBlock(srcInode.i_block[i]);
 			}
 			deallocateInode(src_inode_num);
 			return false;
 		}
+		srcInode.i_block[i] = newBlock;
 	}
 	srcInode.i_ctime = (uint32_t)time(nullptr);
 	srcInode.i_atime = srcInode.i_ctime;
@@ -457,10 +459,10 @@ bool MyFs::moveFile(const std::string& srcFile, const std::string& dstFile) {
 		errno = ENOENT;
 		return false;
 	}
-	uint32_t dst_file_inode = 0;
 	Ext2Inode src_dirInode{};
 	readInodeStruct(src_dir_inode, src_dirInode);
 	bool result = removeDirEntry(src_dirInode, src_inode_num);
+	(void)result;
 	assert(result && "TODO: move failure");
 
 	Ext2Inode dst_dirInode{};
