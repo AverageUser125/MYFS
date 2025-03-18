@@ -36,6 +36,28 @@ void printHelpMessage() {
 
 // clang-format on
 
+void rightsToString(uint16_t rights, char buf[9]) {
+	//TODO: change this shit
+	buf[0] = (rights & 0x4000) != 0 ? 'd' : '-';
+
+	for (int i = 0; i < 9; ++i) {
+		uint16_t fl = (rights >> (8 - i)) & 0x1;
+		switch ((i) % 3) {
+		case 0:
+			buf[i + 1] = fl != 0U ? 'r' : '-';
+			break;
+		case 1:
+			buf[i + 1] = fl != 0U ? 'w' : '-';
+			break;
+		case 2:
+			buf[i + 1] = fl != 0U ? 'x' : '-';
+			break;
+		default:
+			buf[i + 1] = '?';
+		}
+	}
+}
+
 std::string addCurrentDirAdvance(const std::string& path, const std::string& currentDir) {
 	const std::vector<std::string> specialDirectory = {"..", "."};
 	std::string currentPath = currentDir; // Start from the given currentDir
@@ -198,7 +220,7 @@ void printDirectoryInfo(const std::vector<MyFs::FileInfo>& files, const std::str
 			modifTime[strlen(modifTime) - 1] = '\0';
 
 		char modeStr[9] = {0};
-		MyFs::rightsToString(file.mode, modeStr);
+		rightsToString(file.mode, modeStr);
 		printf("%10s%4hu%8u%6u%6u%10u%28s  %s\n", modeStr, file.linkCount, file.inode, file.uid, file.gid, file.size,
 			   modifTime ? modifTime : "-", file.name.c_str());
 	}

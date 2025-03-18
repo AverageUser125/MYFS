@@ -171,7 +171,6 @@ class MyFs {
 	};
 	void sync();
 	void format();
-	static void rightsToString(uint16_t rights, char buf[9]);
 	bool isFileExists(const std::string& filepath);
 	bool createFile(const std::string& filepath);
 	bool deleteFile(const std::string& filepath);

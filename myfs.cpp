@@ -698,28 +698,6 @@ void MyFs::deallocateBlock(uint32_t block_num) {
 	GrpDscrTbl->bg_free_blocks_count++;
 }
 
-void MyFs::rightsToString(uint16_t rights, char buf[9]) {
-	//TODO: change this shit
-	buf[0] = (rights & 0x4000) != 0 ? 'd' : '-';
-
-	for (int i = 0; i < 9; ++i) {
-		uint16_t fl = (rights >> (8 - i)) & 0x1;
-		switch ((i) % 3) {
-		case 0:
-			buf[i + 1] = fl != 0U ? 'r' : '-';
-			break;
-		case 1:
-			buf[i + 1] = fl != 0U ? 'w' : '-';
-			break;
-		case 2:
-			buf[i + 1] = fl != 0U ? 'x' : '-';
-			break;
-		default:
-			buf[i + 1] = '?';
-		}
-	}
-}
-
 bool MyFs::readSuperBlock(Ext2SuperBlock& super) {
 	// skip MBR
 	device.read(1024, sizeof(Ext2SuperBlock), (char*)&super);
