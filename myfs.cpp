@@ -13,7 +13,7 @@
 #include "config.h"
 
 MyFs::MyFs(BlockDeviceSimulator&& deviceIn)
-	: SuperBlock({}), device(std::move(deviceIn)), GrpDscrTbl(nullptr), BLOCK_SIZE(0), gd_count(0) {
+	: SuperBlock({}), device(std::move(deviceIn)), GrpDscrTbl(nullptr), BLOCK_SIZE(0), gd_count(0), arena(arena_init()) {
 	if (readSuperBlock(SuperBlock)) {
 		readGroupDescriptorTable(GrpDscrTbl);
 	} else {
@@ -25,6 +25,7 @@ MyFs::MyFs(BlockDeviceSimulator&& deviceIn)
 MyFs::~MyFs() {
 	sync();
 	delete[] GrpDscrTbl;
+	arena_free(&arena);
 }
 
 bool MyFs::createFile(const std::string& filepath) {
@@ -297,12 +298,14 @@ bool MyFs::getDirectoryInfo(const std::string& dirPath, std::vector<FileInfo>& f
 		readInodeStruct(direntry->inode, inode);
 
 		FileInfo info{};
-		rightsToString(inode.i_mode, info.permissions.data());
+		info.mode = inode.i_mode;
 		info.linkCount = inode.i_links_count;
 		info.inode = direntry->inode;
 		info.size = inode.i_size;
 		info.uid = inode.i_uid;
 		info.gid = inode.i_gid;
+		info.creationTime = inode.i_ctime;
+		info.accessTime = inode.i_atime;
 		info.modificationTime = inode.i_mtime;
 		info.name = fname;
 
@@ -473,14 +476,14 @@ bool MyFs::moveFile(const std::string& srcFile, const std::string& dstFile) {
 
 uint32_t MyFs::findFreeBit(uint32_t bitmap_block, uint32_t max_bits) {
 	assert(max_bits <= BLOCK_SIZE * 8);
-	char* bitmap = (char*)arena_alloc(&global_arena, BLOCK_SIZE);
-	defer(arena_reset(&global_arena));
+	char* bitmap = (char*)arena_alloc(&arena, BLOCK_SIZE);
+	defer(arena_reset(&arena));
 
 	device.read(bitmap_block * BLOCK_SIZE, BLOCK_SIZE, bitmap);
 
 	for (uint32_t i = 0; i < max_bits; ++i) {
 		if ((bitmap[i / 8] & (1 << (i % 8))) == 0) { // Check if bit is free
-			arena_reset(&global_arena);
+			arena_reset(&arena);
 			return i + 1;
 		}
 	}
@@ -489,8 +492,8 @@ uint32_t MyFs::findFreeBit(uint32_t bitmap_block, uint32_t max_bits) {
 }
 
 void MyFs::setBit(uint32_t bitmap_block, uint32_t bitIn, bool state) {
-	char* bitmap = (char*)arena_alloc(&global_arena, BLOCK_SIZE);
-	defer(arena_reset(&global_arena));
+	char* bitmap = (char*)arena_alloc(&arena, BLOCK_SIZE);
+	defer(arena_reset(&arena));
 	device.read(bitmap_block * BLOCK_SIZE, BLOCK_SIZE, bitmap);
 	uint16_t bit = (uint16_t)(bitIn)-1;
 
@@ -537,7 +540,7 @@ void MyFs::sync() {
 }
 
 void MyFs::format() {
-	defer(arena_reset(&global_arena));
+	defer(arena_reset(&arena));
 	BLOCK_SIZE = 1024;
 
 	SuperBlock.s_inodes_count = device.DEVICE_SIZE / (BLOCK_SIZE * 8);
@@ -588,14 +591,14 @@ void MyFs::format() {
 
 	sync();
 
-	char* inode_bitmap = (char*)arena_alloc(&global_arena, BLOCK_SIZE);
+	char* inode_bitmap = (char*)arena_alloc(&arena, BLOCK_SIZE);
 	*inode_bitmap = 0x3; // reserve node 0(not existing),1(broken blocks),2(root)
 	device.write(BLOCK_SIZE * GrpDscrTbl->bg_inode_bitmap, BLOCK_SIZE, inode_bitmap);
 
 	// Initialize block bitmap (reserve blocks 0-4 + inode table)
 	uint32_t inode_table_blocks =
 		(SuperBlock.s_inodes_per_group * SuperBlock.s_inode_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-	char* block_bitmap = (char*)arena_alloc(&global_arena, BLOCK_SIZE);
+	char* block_bitmap = (char*)arena_alloc(&arena, BLOCK_SIZE);
 	uint32_t reserved_blocks = 5 + inode_table_blocks;
 	for (uint32_t i = 0; i < reserved_blocks; ++i)
 		block_bitmap[i / 8] |= (uint8_t)(1 << (i % 8)); // Mark reserved blocks as used
@@ -1056,28 +1059,28 @@ bool MyFs::removeDirEntry(Ext2Inode& dirInode, uint32_t inode_num) {
 
 void MyFs::initDirEntry(Ext2Inode& inodeDir, uint32_t inode_num, uint32_t dir_inode) {
 	// Allocate memory for directory entries dynamically
-	Ext2DirEntry* dot = reinterpret_cast<Ext2DirEntry*>(arena_alloc(&global_arena, 12));
+	Ext2DirEntry* dot = reinterpret_cast<Ext2DirEntry*>(arena_alloc(&arena, 12));
 	dot->inode = inode_num;
 	dot->rec_len = 12;
 	dot->name_len = 1;
 	dot->file_type = EXT2_FT_DIR;
 	memcpy(dot->name, ".", 1);
 
-	Ext2DirEntry* dotdot = reinterpret_cast<Ext2DirEntry*>(arena_alloc(&global_arena, 12));
+	Ext2DirEntry* dotdot = reinterpret_cast<Ext2DirEntry*>(arena_alloc(&arena, 12));
 	dotdot->inode = dir_inode;
 	dotdot->rec_len = (uint16_t)(BLOCK_SIZE - 12);
 	dotdot->name_len = 2;
 	dotdot->file_type = EXT2_FT_DIR;
 	memcpy(dotdot->name, "..", 2);
 
-	Ext2DirEntry* end = reinterpret_cast<Ext2DirEntry*>(arena_alloc(&global_arena, EXT2_DIR_ENTRY_SIZE));
+	Ext2DirEntry* end = reinterpret_cast<Ext2DirEntry*>(arena_alloc(&arena, EXT2_DIR_ENTRY_SIZE));
 	end->inode = 0;
 	end->rec_len = 0;
 	end->name_len = 0;
 	end->file_type = EXT2_FT_UNKNOWN;
 
 	// Allocate memory for directory block
-	char* dir_data = (char*)arena_alloc(&global_arena, BLOCK_SIZE);
+	char* dir_data = (char*)arena_alloc(&arena, BLOCK_SIZE);
 	assert(BLOCK_SIZE >= 512); // to remove warning
 	memcpy(dir_data, dot, 12);
 	memcpy(dir_data + 12, dotdot, 12);
@@ -1086,7 +1089,7 @@ void MyFs::initDirEntry(Ext2Inode& inodeDir, uint32_t inode_num, uint32_t dir_in
 	writeInodeData(inode_num, inodeDir, dir_data, BLOCK_SIZE);
 
 	// Clean up
-	arena_reset(&global_arena);
+	arena_reset(&arena);
 }
 
 #pragma endregion

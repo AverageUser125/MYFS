@@ -15,7 +15,7 @@
 #include <cstring>
 #include <system_error>
 #include "arena.h"
-Arena global_arena;
+#include <ctime>
 
 // clang-format off
 void printHelpMessage() {
@@ -193,12 +193,14 @@ void printDirectoryInfo(const std::vector<MyFs::FileInfo>& files, const std::str
 	printf("%10s%4s%8s%6s%6s%10s%28s  %s\n", "======", "==", "====", "===", "===", "====", "=================", "====");
 
 	for (const auto& file : files) {
-		char* time = ctime(&file.modificationTime);
-		if (time != nullptr)
-			time[strlen(time) - 1] = '\0';
+		char* modifTime = ctime(&file.modificationTime);
+		if (modifTime != nullptr)
+			modifTime[strlen(modifTime) - 1] = '\0';
 
-		printf("%10s%4hu%8u%6u%6u%10u%28s  %s\n", file.permissions.c_str(), file.linkCount, file.inode, file.uid,
-			   file.gid, file.size, time ? time : "-", file.name.c_str());
+		char modeStr[9] = {0};
+		MyFs::rightsToString(file.mode, modeStr);
+		printf("%10s%4hu%8u%6u%6u%10u%28s  %s\n", modeStr, file.linkCount, file.inode, file.uid, file.gid, file.size,
+			   modifTime ? modifTime : "-", file.name.c_str());
 	}
 }
 
@@ -397,9 +399,7 @@ int realMain(int argc, char** argv) {
 
 int main(int argc, char** argv) {
 	try {
-		arena_init(&global_arena, REGION_DEFAULT_CAPACITY);
 		realMain(argc, argv);
-		arena_free(&global_arena);
 	} catch (std::exception& e) {
 		std::cerr << e.what() << '\n';
 		return 1;

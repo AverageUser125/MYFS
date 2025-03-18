@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <type_traits>
 #include "config.h"
+#include "arena.h"
 
 constexpr uint16_t EXT2_SUPER_MAGIC = 0xEF53;
 
@@ -157,14 +158,16 @@ class MyFs {
 	~MyFs();
 
 	struct FileInfo {
-		std::string permissions;
-		uint16_t linkCount;
+		std::string name;
 		uint32_t inode;
 		uint32_t size;
 		uint32_t uid;
 		uint32_t gid;
+		time_t creationTime;
+		time_t accessTime;
 		time_t modificationTime;
-		std::string name;
+		uint16_t mode;
+		uint16_t linkCount;
 	};
 	void sync();
 	void format();
@@ -187,6 +190,7 @@ class MyFs {
 	Ext2GroupDescriptor* GrpDscrTbl; // dynamic size
 	uint32_t BLOCK_SIZE;
 	uint32_t gd_count;
+	Arena arena;
 
 	uint32_t findFreeBit(uint32_t bitmap_block, uint32_t max_bits);
 	void setBit(uint32_t bitmap_block, uint32_t bit, bool state);
