@@ -8,7 +8,7 @@
 - [ ] Add support for indirect, doubly-indirect and triply-indirect block pointers
 - [x] FIX THE FORMAT FUNCTION
 - [ ] Make splitPath more sophisticated
-- [ ] Add fail safes to moveFile failing
+- [ ] Clean up if move or copy fails half way through
 
 # Todo Later
 - [ ] Set deletion time and maybe clear the inode on delete
@@ -26,8 +26,7 @@
 - [ ] Make functions return errno instead of setting it
 - [ ] Out of storage panic
 - [ ] Checksums, everywhere
-- [ ] Maybe set the access time of read
-- [ ] The editor putting new line at the end of the file
+- [ ] Maybe set the access time on read
 - [ ] Store small files directly in the i_block of the inode (less than 60 bytes), idk if only in 256 bits inode or only in EXT3
 
 # Sources
